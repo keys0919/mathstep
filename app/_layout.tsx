@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
@@ -33,8 +34,12 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Head>
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="theme-color" content="#F9FBE7" />
+      </Head>
+      <StatusBar style="dark" backgroundColor="#F9FBE7" />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#F9FBE7' } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="garden" />
         <Stack.Screen name="(session)" />

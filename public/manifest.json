@@ -6,7 +6,7 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F9FBE7",
-  "theme_color": "#4CAF50",
+  "theme_color": "#F9FBE7",
   "icons": [
     {
       "src": "/mathstep/icons/icon-192.png",
