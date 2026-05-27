@@ -40,6 +40,10 @@ jobs:
       - name: Copy icons
         run: mkdir -p dist/icons && cp -r public/icons/. dist/icons/
 
+      - name: Add iOS PWA meta tags
+        run: |
+          find dist -name "*.html" -exec sed -i 's|</head>|<link rel="apple-touch-icon" href="/mathstep/icons/icon-512.png"><meta name="apple-mobile-web-app-title" content="째이 수학"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"></head>|' {} \;
+
       - uses: actions/configure-pages@v4
 
       - uses: actions/upload-pages-artifact@v3
