@@ -25,6 +25,8 @@ export interface MultiplyProblem {
   sum: number;
   p1Len: number;
   boxes: BoxDef[];
+  // 합산 단계 올림 수: [십→백, 백→천] (0이면 올림 없음)
+  sumCarries: [number, number];
 }
 
 export interface DivideProblem {

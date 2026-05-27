@@ -220,6 +220,7 @@ export default function MentalScreen() {
 
   const choiceState0 = (choice: number) => {
     if (status === 'answering') return 'default' as const;
+    if (status === 'wrong' && choice === problem.answer) return 'correct' as const;
     if (choice === selected) return status as 'correct' | 'wrong';
     return 'disabled' as const;
   };

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,6 +41,12 @@ export default function MultiplyScreen() {
     new Array(problems[0].boxes.length).fill(null)
   );
   const [isWrong, setIsWrong] = useState(false);
+  // 합산 단계 올림 수 입력 상태
+  const [pendingCarryCheck, setPendingCarryCheck] = useState(false);
+  const pendingNextStepRef = useRef(0);
+  const pendingCarryIdxRef = useRef<0 | 1>(0); // 0=십→백, 1=백→천
+  // 올림 수별 fills: [십→백 carry filled?, 백→천 carry filled?]
+  const [carryFills, setCarryFills] = useState<(number | null)[]>([null, null]);
 
   const problem = problems[pIdx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
@@ -69,6 +75,8 @@ export default function MultiplyScreen() {
         } else {
           setBoxIdx(0);
           setFills(new Array(problems[nextP].boxes.length).fill(null));
+          setCarryFills([null, null]);
+          setPendingCarryCheck(false);
           setPIdx(nextP);
         }
       } else {
@@ -79,9 +87,46 @@ export default function MultiplyScreen() {
     [problem, problems, pIdx, addBigNumQuestion, router]
   );
 
+  // 합산 올림 수 체크 트리거 여부 (boxIdx → next 이동 직전)
+  const checkSumCarry = useCallback(
+    (next: number, newFills: (FillEntry | null)[]) => {
+      // step 7 완료(sum 십의자리) → 십→백 올림 체크
+      if (boxIdx === 7 && problem.sumCarries[0] > 0) {
+        pendingNextStepRef.current = next;
+        pendingCarryIdxRef.current = 0;
+        setFills(newFills);
+        setPendingCarryCheck(true);
+        return;
+      }
+      // step 8 완료(sum 백의자리) → 백→천 올림 체크
+      if (boxIdx === 8 && problem.sumCarries[1] > 0) {
+        pendingNextStepRef.current = next;
+        pendingCarryIdxRef.current = 1;
+        setFills(newFills);
+        setPendingCarryCheck(true);
+        return;
+      }
+      advanceTo(next, newFills);
+    },
+    [boxIdx, problem, advanceTo]
+  );
+
+  const handleCarryChoice = useCallback(
+    (choice: number) => {
+      const carryIdx = pendingCarryIdxRef.current;
+      const correct = choice === problem.sumCarries[carryIdx];
+      const newCarryFills = [...carryFills];
+      newCarryFills[carryIdx] = correct ? choice : problem.sumCarries[carryIdx];
+      setCarryFills(newCarryFills);
+      setPendingCarryCheck(false);
+      advanceTo(pendingNextStepRef.current, fills);
+    },
+    [carryFills, fills, problem, advanceTo]
+  );
+
   const handleChoice = useCallback(
     (choice: number) => {
-      if (isWrong) return;
+      if (isWrong || pendingCarryCheck) return;
       const gIdx = ACTIVATION_ORDER[boxIdx];
       const box = problem.boxes[gIdx];
       const correct = choice === box.answer;
@@ -92,7 +137,7 @@ export default function MultiplyScreen() {
         newFills[gIdx] = { value: choice, status: 'correct' };
         addSeed('normal');
         incrementCombo(config.comboThreshold1, config.comboThreshold2);
-        setTimeout(() => advanceTo(boxIdx + 1, newFills), 300);
+        setTimeout(() => checkSumCarry(boxIdx + 1, newFills), 300);
       } else {
         setIsWrong(true);
         resetCombo();
@@ -100,14 +145,29 @@ export default function MultiplyScreen() {
           const newFills = [...fills];
           newFills[gIdx] = { value: box.answer, status: 'revealed' };
           setIsWrong(false);
-          advanceTo(boxIdx + 1, newFills);
+          checkSumCarry(boxIdx + 1, newFills);
         }, 800);
       }
     },
-    [boxIdx, fills, isWrong, problem, advanceTo]
+    [boxIdx, fills, isWrong, pendingCarryCheck, problem, checkSumCarry]
   );
 
   const currentBox = problem.boxes[ACTIVATION_ORDER[Math.min(boxIdx, ACTIVATION_ORDER.length - 1)]];
+
+  const carryChoices = useMemo(() => {
+    const carry = problem.sumCarries[pendingCarryIdxRef.current];
+    return carry <= 1 ? [0, 1] : [carry - 1, carry, carry + 1];
+  }, [pendingCarryCheck, problem]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 합산 단계 올림 수: sumCells 위에 표시 (carryFills에 값이 있을 때)
+  // sumCells 배열 인덱스: 0=천, 1=백, 2=십, 3=일
+  // carryFills[0] = 십→백 올림 → sumCells[1] (백의 자리) 위에 표시
+  // carryFills[1] = 백→천 올림 → sumCells[0] (천의 자리) 위에 표시
+  const getSumCarryForCol = (sumColIdx: number): number | null => {
+    if (sumColIdx === 1 && carryFills[0] !== null) return carryFills[0];
+    if (sumColIdx === 0 && carryFills[1] !== null) return carryFills[1];
+    return null;
+  };
 
   // 헬퍼: 숫자 셀
   const D = (n: number, key: string) => (
@@ -187,6 +247,21 @@ export default function MultiplyScreen() {
           {/* 가로줄 2 */}
           <Divider />
 
+          {/* 합산 올림 수 행: sum 박스 위에 올림 수 표시 */}
+          <View style={styles.row}>
+            <View style={styles.opCol} />
+            {sumCells.map((_, i) => {
+              const carry = getSumCarryForCol(i);
+              return (
+                <View key={`scr-${i}`} style={styles.carryCell}>
+                  {carry !== null && carry > 0 && (
+                    <Text style={styles.carryText}>{carry}</Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+
           {/* sum 행: col 0~3 = 4자리 합산 박스 */}
           <View style={styles.row}>
             <View style={styles.opCol} />
@@ -198,7 +273,9 @@ export default function MultiplyScreen() {
 
       {/* 현재 칸 위치 힌트 */}
       <Text style={styles.hint}>
-        {boxIdx < P2_START
+        {pendingCarryCheck
+          ? '올림 수는?'
+          : boxIdx < P2_START
           ? `${problem.a} × ${problem.b % 10} 계산 중`
           : boxIdx < SUM_START
           ? `${problem.a} × ${Math.floor(problem.b / 10)} 계산 중`
@@ -207,14 +284,23 @@ export default function MultiplyScreen() {
 
       {/* 객관식 보기 */}
       <View style={styles.choices}>
-        {currentBox.choices.map((choice, i) => (
-          <ChoiceButton
-            key={i}
-            label={choice}
-            state={isWrong ? 'disabled' : 'default'}
-            onPress={() => handleChoice(choice)}
-          />
-        ))}
+        {pendingCarryCheck
+          ? carryChoices.map((choice, i) => (
+              <ChoiceButton
+                key={i}
+                label={choice}
+                state="default"
+                onPress={() => handleCarryChoice(choice)}
+              />
+            ))
+          : currentBox.choices.map((choice, i) => (
+              <ChoiceButton
+                key={i}
+                label={choice}
+                state={isWrong ? 'disabled' : 'default'}
+                onPress={() => handleChoice(choice)}
+              />
+            ))}
       </View>
 
       {/* 씨앗 카운터 */}
@@ -289,6 +375,18 @@ const styles = StyleSheet.create({
     height: CELL,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  carryCell: {
+    width: CELL,
+    height: 18,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  carryText: {
+    fontSize: 13,
+    fontFamily: 'Pretendard-Bold',
+    color: '#FF7043',
+    fontVariant: ['tabular-nums'],
   },
   indentCell: {
     backgroundColor: '#F5F5F5',

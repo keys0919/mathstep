@@ -162,7 +162,19 @@ export function buildMultiplySession(count: number): MultiplyProblem[] {
       ...sumDigits.map((d, i): BoxDef => ({ id: `sum-${i}`, answer: d, choices: digitChoices(d) })),
     ];
 
-    problems.push({ a, b, partial1, partial2, sum, p1Len: 3, boxes });
+    // 합산 단계 올림 수 계산
+    const p1Ones = partial1 % 10;
+    const p2Ones = partial2 % 10;
+    const p1Tens = Math.floor(partial1 / 10) % 10;
+    const p2Tens = Math.floor(partial2 / 10) % 10;
+    const p1Hundreds = Math.floor(partial1 / 100);
+    const tensCol = p1Tens + p2Ones;
+    const carry1 = Math.floor(tensCol / 10); // 십→백 올림
+    const hundredsCol = p1Hundreds + p2Tens + carry1;
+    const carry2 = Math.floor(hundredsCol / 10); // 백→천 올림
+    const sumCarries: [number, number] = [carry1, carry2];
+
+    problems.push({ a, b, partial1, partial2, sum, p1Len: 3, boxes, sumCarries });
   }
 
   return problems;
