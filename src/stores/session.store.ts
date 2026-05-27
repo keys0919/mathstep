@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Phase, MultTableResult } from '../types/problem.types';
-import { SessionSeeds } from '../types/progress.types';
+import { SessionSeeds, ProblemLog } from '../types/progress.types';
 
 interface SessionStore {
   phase: Phase;
@@ -12,6 +12,7 @@ interface SessionStore {
   mentalTotal: number;
   bigNumBoxes: number;
   bigNumQuestions: number;
+  logs: ProblemLog[];
 
   setPhase: (phase: Phase) => void;
   addSeed: (type: keyof SessionSeeds) => void;
@@ -21,6 +22,7 @@ interface SessionStore {
   addMentalResult: (correct: boolean) => void;
   addBigNumBox: () => void;
   addBigNumQuestion: () => void;
+  addLog: (log: ProblemLog) => void;
   reset: () => void;
 }
 
@@ -34,6 +36,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   mentalTotal: 0,
   bigNumBoxes: 0,
   bigNumQuestions: 0,
+  logs: [],
 
   setPhase: (phase) => set({ phase }),
 
@@ -68,6 +71,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   addBigNumBox: () => set((s) => ({ bigNumBoxes: s.bigNumBoxes + 1 })),
   addBigNumQuestion: () => set((s) => ({ bigNumQuestions: s.bigNumQuestions + 1 })),
+  addLog: (log) => set((s) => ({ logs: [...s.logs, log] })),
 
   reset: () => set({
     phase: 'mult-table',
@@ -79,5 +83,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     mentalTotal: 0,
     bigNumBoxes: 0,
     bigNumQuestions: 0,
+    logs: [],
   }),
 }));

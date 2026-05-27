@@ -32,7 +32,7 @@ export default function MultiplyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { config } = useConfigStore();
-  const { seeds, combo, addSeed, addBigNumBox, addBigNumQuestion, incrementCombo, resetCombo } = useSessionStore();
+  const { seeds, combo, addSeed, addBigNumBox, addBigNumQuestion, addLog, incrementCombo, resetCombo } = useSessionStore();
 
   const [problems] = useState(() => buildMultiplySession(3));
   const [pIdx, setPIdx] = useState(0);
@@ -41,6 +41,7 @@ export default function MultiplyScreen() {
     new Array(problems[0].boxes.length).fill(null)
   );
   const [isWrong, setIsWrong] = useState(false);
+  const hadErrorRef = useRef(false);
   // 합산 단계 올림 수 입력 상태
   const [pendingCarryCheck, setPendingCarryCheck] = useState(false);
   const pendingNextStepRef = useRef(0);
@@ -68,6 +69,8 @@ export default function MultiplyScreen() {
     (next: number, newFills: (FillEntry | null)[]) => {
       if (next >= problem.boxes.length) {
         addBigNumQuestion();
+        addLog({ type: 'multiply', problem: `${problem.a}×${problem.b}`, correct: !hadErrorRef.current });
+        hadErrorRef.current = false;
         const nextP = pIdx + 1;
         if (nextP >= problems.length) {
           router.push('/(session)/divide');
@@ -139,6 +142,7 @@ export default function MultiplyScreen() {
         setTimeout(() => checkSumCarry(boxIdx + 1, newFills), 300);
       } else {
         setIsWrong(true);
+        hadErrorRef.current = true;
         resetCombo();
         setTimeout(() => {
           const newFills = [...fills];

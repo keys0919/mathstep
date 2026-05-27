@@ -39,6 +39,13 @@ export interface SessionSeeds {
   special: number;
 }
 
+export interface ProblemLog {
+  type: 'mult' | 'mental' | 'multiply' | 'divide';
+  problem: string;   // e.g. "7×8", "43+28", "234×3", "693÷3"
+  correct: boolean;
+  timeSec?: number;
+}
+
 export interface SessionRecord {
   date: string;
   seeds: SessionSeeds;
@@ -46,6 +53,7 @@ export interface SessionRecord {
   multTable: { correct: number; total: number; avgTimeSec: number };
   mental: { correct: number; total: number };
   bigNum: { boxesCompleted: number; questionsCompleted: number };
+  logs: ProblemLog[];
 }
 
 export interface AppData {

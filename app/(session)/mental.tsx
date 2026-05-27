@@ -61,7 +61,7 @@ export default function MentalScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { config } = useConfigStore();
-  const { seeds, combo, addSeed, addMentalResult, incrementCombo, resetCombo } = useSessionStore();
+  const { seeds, combo, addSeed, addMentalResult, addLog, incrementCombo, resetCombo } = useSessionStore();
   const mentalLevel = useProgressStore((s) => s.state.mentalLevel ?? 0);
 
   const [problems] = useState(() => buildMentalSession(config.mentalPerSession));
@@ -124,6 +124,7 @@ export default function MentalScreen() {
       setSelected(choice);
       setStatus(correct ? 'correct' : 'wrong');
       addMentalResult(correct);
+      addLog({ type: 'mental', problem: `${problem.a}${problem.op}${problem.b}`, correct });
       if (correct) {
         addSeed('normal');
         incrementCombo(config.comboThreshold1, config.comboThreshold2);
@@ -150,7 +151,9 @@ export default function MentalScreen() {
 
         const next = boxIdx + 1;
         if (next >= answerDigits.length) {
-          addMentalResult(!hadWrongRef.current);
+          const problemCorrect = !hadWrongRef.current;
+          addMentalResult(problemCorrect);
+          addLog({ type: 'mental', problem: `${problem.a}${problem.op}${problem.b}`, correct: problemCorrect });
           setFills(newFills);
           setTimeout(() => advanceProblem(idx + 1), 500);
         } else if (problemCarries[0] !== null) {
@@ -173,6 +176,7 @@ export default function MentalScreen() {
           const next = boxIdx + 1;
           if (next >= answerDigits.length) {
             addMentalResult(false);
+            addLog({ type: 'mental', problem: `${problem.a}${problem.op}${problem.b}`, correct: false });
             setFills(newFills);
             setTimeout(() => advanceProblem(idx + 1), 300);
           } else {
@@ -268,9 +272,10 @@ export default function MentalScreen() {
         <ProgressBar current={idx} total={problems.length} label={`${idx}/${problems.length}`} />
       </View>
 
-      {/* 콤보 */}
+      {/* 콤보 + 씨앗 */}
       <View style={styles.comboArea}>
         <ComboDisplay combo={combo} threshold={config.comboThreshold2} />
+        <SeedCounter count={totalSeeds} />
       </View>
 
       {/* 필산 카드 */}
@@ -411,10 +416,6 @@ export default function MentalScreen() {
             ))}
       </View>
 
-      {/* 씨앗 카운터 */}
-      <View style={styles.footer}>
-        <SeedCounter count={totalSeeds} />
-      </View>
     </View>
   );
 }
@@ -435,7 +436,9 @@ const styles = StyleSheet.create({
     color: '#6A7B5A',
   },
   comboArea: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     minHeight: 36,
     marginBottom: 16,
   },
@@ -554,10 +557,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     marginBottom: 24,
-  },
-  footer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
   },
 });

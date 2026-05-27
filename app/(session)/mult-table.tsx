@@ -20,7 +20,7 @@ export default function MultTableScreen() {
   const { multTable, recordMultTableResult, checkAndGraduate } = useProgressStore();
   const multLevel = useProgressStore((s) => s.state.multLevel ?? 0);
   const { config } = useConfigStore();
-  const { seeds, combo, addSeed, addMultTableResult, incrementCombo, resetCombo } = useSessionStore();
+  const { seeds, combo, addSeed, addMultTableResult, addLog, incrementCombo, resetCombo } = useSessionStore();
 
   const [problems] = useState(() =>
     buildMultTableSession(multTable, config.multTablePerSession)
@@ -69,6 +69,7 @@ export default function MultTableScreen() {
     if (!retrying) {
       recordMultTableResult(problem.a, problem.b, correct, timeSec, config.multTableTimeSec);
       addMultTableResult({ a: problem.a, b: problem.b, correct, timeSec });
+      addLog({ type: 'mult', problem: `${problem.a}×${problem.b}`, correct, timeSec });
       if (correct) {
         incrementCombo(config.comboThreshold1, config.comboThreshold2);
         if (timeSec <= config.multTableTimeSec) {
@@ -151,9 +152,10 @@ export default function MultTableScreen() {
         <ProgressBar current={idx} total={problems.length} label={`${idx}/${problems.length}`} />
       </View>
 
-      {/* 콤보 */}
+      {/* 콤보 + 씨앗 */}
       <View style={styles.comboArea}>
         <ComboDisplay combo={combo} threshold={config.comboThreshold2} />
+        <SeedCounter count={totalSeeds} />
       </View>
 
       {/* 문제 카드 */}
@@ -251,10 +253,6 @@ export default function MultTableScreen() {
         </>
       )}
 
-      {/* 씨앗 카운터 */}
-      <View style={styles.footer}>
-        <SeedCounter count={totalSeeds} />
-      </View>
 
     </View>
   );
@@ -276,7 +274,9 @@ const styles = StyleSheet.create({
     color: '#6A7B5A',
   },
   comboArea: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     minHeight: 36,
     marginBottom: 16,
   },
@@ -403,10 +403,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Pretendard-Bold',
     color: '#FFFFFF',
-  },
-  footer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
   },
 });

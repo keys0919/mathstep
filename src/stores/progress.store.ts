@@ -23,6 +23,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     lastStudyDate: null,
     mentalLevel: 0,
     multLevel: 0,
+    completedMaps: [],
   },
   multTable: { graduated: [], weak: {} },
   sessions: [],

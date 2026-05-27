@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,7 +29,7 @@ export default function DivideScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { config } = useConfigStore();
-  const { seeds, combo, addSeed, addBigNumBox, addBigNumQuestion, incrementCombo, resetCombo } = useSessionStore();
+  const { seeds, combo, addSeed, addBigNumBox, addBigNumQuestion, addLog, incrementCombo, resetCombo } = useSessionStore();
 
   const [problems] = useState(() => buildDivideSession(4));
   const [pIdx, setPIdx] = useState(0);
@@ -38,6 +38,7 @@ export default function DivideScreen() {
   const [boxIdx, setBoxIdx] = useState(0);
   const [fills, setFills] = useState<(FillEntry | null)[]>([null, null]);
   const [isWrong, setIsWrong] = useState(false);
+  const hadErrorRef = useRef(false);
 
   const problem = problems[pIdx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
@@ -54,6 +55,8 @@ export default function DivideScreen() {
 
   const advanceProblem = useCallback(() => {
     addBigNumQuestion();
+    addLog({ type: 'divide', problem: `${problem.dividend}÷${problem.divisor}`, correct: !hadErrorRef.current });
+    hadErrorRef.current = false;
     const next = pIdx + 1;
     if (next >= problems.length) {
       router.push('/(session)/complete');
@@ -63,7 +66,7 @@ export default function DivideScreen() {
       setFills([null, null]);
       setIsWrong(false);
     }
-  }, [pIdx, problems]);
+  }, [pIdx, problems, problem, addLog]);
 
   const handleChoice = useCallback(
     (choice: number) => {
@@ -88,6 +91,7 @@ export default function DivideScreen() {
         }
       } else {
         setIsWrong(true);
+        hadErrorRef.current = true;
         resetCombo();
         setTimeout(() => {
           const newFills = [...fills];

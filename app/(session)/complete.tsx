@@ -18,7 +18,7 @@ const MAP_COLOR: Record<string, string> = {
 export default function CompleteScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { seeds: sessionSeeds, maxCombo, multTableResults, mentalCorrect, mentalTotal, bigNumBoxes, bigNumQuestions, addSeed } = useSessionStore();
+  const { seeds: sessionSeeds, maxCombo, multTableResults, mentalCorrect, mentalTotal, bigNumBoxes, bigNumQuestions, logs, addSeed } = useSessionStore();
   const { saveSession, state } = useProgressStore();
   const { config } = useConfigStore();
 
@@ -60,6 +60,7 @@ export default function CompleteScreen() {
       },
       mental: { correct: mentalCorrect, total: mentalTotal },
       bigNum: { boxesCompleted: bigNumBoxes, questionsCompleted: bigNumQuestions },
+      logs,
     });
 
     Animated.sequence([

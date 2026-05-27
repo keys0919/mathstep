@@ -40,8 +40,7 @@ export default function RootLayout() {
       </Head>
       <StatusBar style="dark" backgroundColor="#F9FBE7" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#F9FBE7' } }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="garden" />
+        <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(session)" />
       </Stack>
     </SafeAreaProvider>
