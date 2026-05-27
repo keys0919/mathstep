@@ -96,7 +96,10 @@ export default function MentalScreen() {
   const advanceProblem = useCallback(
     (next: number) => {
       if (next >= problems.length) {
-        router.push('/(session)/multiply');
+        // 구구단 졸업 16개(25%) 미만이면 세자리수 연산 스킵
+        const { multTable } = useProgressStore.getState();
+        const readyForBigNum = multTable.graduated.length >= 16;
+        router.push(readyForBigNum ? '/(session)/multiply' : '/(session)/complete');
         return;
       }
       setIdx(next);
