@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, ScrollView, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../src/stores/progress.store';
@@ -46,8 +46,10 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }]}>
+
+      {/* 상단 콘텐츠 */}
+      <View style={styles.top}>
 
         {/* 캐릭터 + 인사 */}
         <View style={styles.characterArea}>
@@ -88,8 +90,10 @@ export default function HomeScreen() {
             구구단 {config.multTablePerSession} · 암산 {config.mentalPerSession} · 세자리수
           </Text>
         </View>
+      </View>
 
-        {/* 세션 시작 버튼 */}
+      {/* 하단 버튼 영역 */}
+      <View style={styles.bottom}>
         <Pressable
           style={({ pressed }) => [styles.startBtn, { backgroundColor: pressed ? '#388E3C' : mapColor }]}
           onPress={handleStart}
@@ -97,17 +101,16 @@ export default function HomeScreen() {
           <Text style={styles.startBtnText}>세션 시작하기</Text>
         </Pressable>
 
-        {/* 하단 보조 버튼 */}
         <View style={styles.bottomRow}>
           <Pressable style={styles.textBtn} onPress={() => router.push('/garden')}>
             <Text style={styles.textBtnLabel}>정원 보기</Text>
           </Pressable>
-          <Pressable style={styles.textBtn} onPress={() => router.push('/garden')}>
+          <Pressable style={styles.textBtn} onPress={() => router.push('/history' as never)}>
             <Text style={styles.textBtnLabel}>히스토리</Text>
           </Pressable>
         </View>
+      </View>
 
-      </ScrollView>
     </View>
   );
 }
@@ -116,22 +119,24 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#F9FBE7',
+    paddingHorizontal: 20,
   },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 32,
+  top: {
+    flex: 1,
     gap: 20,
+    justifyContent: 'center',
+  },
+  bottom: {
+    gap: 16,
   },
   characterArea: {
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 8,
   },
   characterImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 36,
+    width: 130,
+    height: 130,
+    borderRadius: 32,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
@@ -221,10 +226,11 @@ const styles = StyleSheet.create({
   bottomRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 32,
+    gap: 40,
   },
   textBtn: {
-    padding: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   textBtnLabel: {
     fontSize: 15,

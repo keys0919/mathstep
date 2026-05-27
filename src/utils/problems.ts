@@ -28,8 +28,9 @@ export function buildMultTableSession(
       const weakBonus = entry && (entry.errors > 0 || entry.slowCount > 0) ? 2 : 0;
 
       const weight = baseWeight + weakBonus;
+      const ans = a * b;
       for (let i = 0; i < weight; i++) {
-        pool.push({ a, b, answer: a * b });
+        pool.push({ a, b, answer: ans, choices: multTableChoices(ans) });
       }
     }
   }
@@ -38,7 +39,8 @@ export function buildMultTableSession(
   if (pool.length === 0) {
     for (let a = 7; a <= 9; a++) {
       for (let b = 2; b <= 9; b++) {
-        pool.push({ a, b, answer: a * b });
+        const ans = a * b;
+        pool.push({ a, b, answer: ans, choices: multTableChoices(ans) });
       }
     }
   }
@@ -56,7 +58,7 @@ export function buildMultTableSession(
       if (alt) candidate = alt;
     }
 
-    result.push({ ...candidate });
+    result.push({ ...candidate, choices: multTableChoices(candidate.answer) });
   }
 
   return result;
@@ -119,6 +121,16 @@ export function buildMentalSession(count: number): MentalProblem[] {
   return shuffle(problems);
 }
 
+function multTableChoices(answer: number): number[] {
+  const pool = new Set<number>();
+  for (const offset of [-12, -9, -6, -4, 4, 6, 9, 12]) {
+    const v = answer + offset;
+    if (v > 0 && v <= 81) pool.add(v);
+  }
+  const wrongs = shuffle([...pool]).slice(0, 2);
+  return shuffle([answer, ...wrongs]);
+}
+
 // 한 자리 digit의 객관식 3보기 (0~9 중 정답 + 2개 오답)
 function digitChoices(d: number): number[] {
   const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((n) => n !== d);
@@ -168,31 +180,39 @@ export function buildDivideSession(count: number): DivideProblem[] {
     if (dividend < 100 || dividend > 999) continue;
 
     const product = divisor * quotient;
+    const quotTens = Math.floor(quotient / 10);
+    const quotOnes = quotient % 10;
+    const tensProduct = divisor * quotTens * 10;
+    const intermediate = dividend - tensProduct;
+    const onesProduct = divisor * quotOnes;
 
-    // 어림셈 힌트: quotient의 십의자리 × 10, × 20
-    const h1Mult = Math.floor(quotient / 10) * 10; // e.g. 10 (for quotient=14)
-    const h2Mult = h1Mult + 10;                     // e.g. 20
+    // 십의 자리 선택지: quotTens ± 1 (범위: 1~3)
+    const tensSet = new Set([Math.max(1, quotTens - 1), quotTens, Math.min(4, quotTens + 1)]);
+    while (tensSet.size < 3) tensSet.add(quotTens + tensSet.size);
+    const tensChoices = shuffle([...tensSet]);
 
-    // 몫 선택지: ±2 (전체 몫값 기준)
-    const w1 = Math.max(11, quotient - 2);
-    const w2 = quotient + 2;
-    const choices = shuffle([w1, quotient, w2]);
+    // 일의 자리 선택지: quotOnes ± 1 (범위: 0~9)
+    const onesSet = new Set([Math.max(0, quotOnes - 1), quotOnes, Math.min(9, quotOnes + 1)]);
+    while (onesSet.size < 3) onesSet.add((Math.min(9, quotOnes + onesSet.size)));
+    const onesChoices = shuffle([...onesSet]);
 
     const boxes: BoxDef[] = [
-      { id: 'quot', answer: quotient, choices },
+      { id: 'tens', answer: quotTens, choices: tensChoices },
+      { id: 'ones', answer: quotOnes, choices: onesChoices },
     ];
 
     problems.push({
       dividend,
       divisor,
       quotient,
+      quotTens,
+      quotOnes,
       remainder,
       product,
+      tensProduct,
+      intermediate,
+      onesProduct,
       boxes,
-      hints: [
-        { multiplier: h1Mult, product: divisor * h1Mult },
-        { multiplier: h2Mult, product: divisor * h2Mult },
-      ],
     });
   }
 

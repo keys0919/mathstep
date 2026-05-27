@@ -22,6 +22,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     streak: 0,
     lastStudyDate: null,
     mentalLevel: 0,
+    multLevel: 0,
   },
   multTable: { graduated: [], weak: {} },
   sessions: [],
@@ -74,6 +75,17 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       }
     }
 
+    // 구구단 레벨 승급: 최근 3세션 정답률 ≥ 80%
+    let multLevel = data.state.multLevel ?? 0;
+    if (multLevel === 0) {
+      const recent = nextSessions.slice(-3);
+      const totalCorrect = recent.reduce((s, r) => s + r.multTable.correct, 0);
+      const totalCount = recent.reduce((s, r) => s + r.multTable.total, 0);
+      if (recent.length >= 3 && totalCount > 0 && totalCorrect / totalCount >= 0.8) {
+        multLevel = 1;
+      }
+    }
+
     const nextState: AppState = {
       ...data.state,
       currentMap,
@@ -81,6 +93,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       streak,
       lastStudyDate: today,
       mentalLevel,
+      multLevel,
     };
 
     saveData({ ...data, state: nextState, sessions: nextSessions });

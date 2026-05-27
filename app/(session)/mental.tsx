@@ -40,6 +40,23 @@ function getHint(op: string, a: number, b: number): string {
   return `${Math.floor(a / 10) * 10} × ${b} = ${Math.floor(a / 10) * 10 * b}`;
 }
 
+// 각 자리 올림/빌림 계산
+// returns [ones→tens carry, tens→hundreds carry]
+function computeCarries(op: string, a: number, b: number): [number | null, number | null] {
+  if (op === '+') {
+    const c0 = Math.floor((a % 10 + b % 10) / 10);
+    return [c0 || null, null];
+  }
+  if (op === '-') {
+    const borrow = (a % 10 < b % 10) ? 1 : 0;
+    return [borrow || null, null];
+  }
+  // 곱셈
+  const c0 = Math.floor((a % 10) * b / 10);
+  const c1 = Math.floor((Math.floor(a / 10) * b + c0) / 10);
+  return [c0 || null, c1 || null];
+}
+
 export default function MentalScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -69,6 +86,12 @@ export default function MentalScreen() {
   const padCols = COLS - answerDigits.length;
   // 활성화 순서: 일의 자리(오른쪽)부터
   const activationOrder = Array.from({ length: answerDigits.length }, (_, i) => answerDigits.length - 1 - i);
+
+  // 올림/빌림 계산 (문제 변경 시마다)
+  const problemCarries = useMemo(
+    () => computeCarries(problem.op, problem.a, problem.b),
+    [problem]
+  );
 
   const advanceProblem = useCallback(
     (next: number) => {
@@ -154,14 +177,12 @@ export default function MentalScreen() {
     [isWrong, boxIdx, fills, answerDigits, activationOrder, idx, advanceProblem, config]
   );
 
-  // Level 1: 현재 자리 선택지 (문제/박스 변경 시 재생성)
   const currentDigitChoices = useMemo(() => {
     if (mentalLevel !== 1) return [];
     const fillIdx = activationOrder[Math.min(boxIdx, activationOrder.length - 1)];
     return digitChoices(answerDigits[fillIdx]);
   }, [mentalLevel, boxIdx, idx]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Level 1 박스 상태
   const getLevel1BoxState = (digitIdx: number): MathBoxState => {
     const step = activationOrder.indexOf(digitIdx);
     if (step < boxIdx) return fills[digitIdx]?.status ?? 'inactive';
@@ -169,7 +190,6 @@ export default function MentalScreen() {
     return 'inactive';
   };
 
-  // Level 0 박스 상태
   const level0BoxState = (status === 'answering' ? 'active' : status) as MathBoxState;
 
   const choiceState0 = (choice: number) => {
@@ -192,13 +212,26 @@ export default function MentalScreen() {
 
   const hintText = getHint(problem.op, problem.a, problem.b);
 
-  // Level 1 현재 자리 레이블
   const digitLabels2 = ['십', '일'];
   const digitLabels3 = ['백', '십', '일'];
   const digitLabels = answerDigits.length === 2 ? digitLabels2 : digitLabels3;
   const currentLabel = mentalLevel === 1
     ? digitLabels[activationOrder[Math.min(boxIdx, activationOrder.length - 1)]]
     : '';
+
+  // 올림/빌림 힌트: 일의 자리 풀이 후(boxIdx>=1) 십의 자리 열에 표시
+  // 십의 자리 풀이 후(boxIdx>=2) 백의 자리 열에 표시 (3자리 답인 경우)
+  const showCarryRow = mentalLevel === 1;
+  const getCarryForCol = (digitIdx: number): number | null => {
+    // digitIdx: answerDigits 배열에서의 인덱스 (0=가장 왼쪽)
+    // ones→tens carry: answerDigits.length-2 위치, boxIdx>=1일 때
+    if (digitIdx === answerDigits.length - 2 && boxIdx >= 1) return problemCarries[0];
+    // tens→hundreds carry: answerDigits.length-3 위치, boxIdx>=2, 3자리일 때
+    if (answerDigits.length === 3 && digitIdx === 0 && boxIdx >= 2) return problemCarries[1];
+    return null;
+  };
+
+  const carryLabel = problem.op === '-' ? '빌림' : '올림';
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
@@ -219,6 +252,26 @@ export default function MentalScreen() {
       {/* 필산 카드 */}
       <View style={styles.card}>
         <View style={styles.grid}>
+
+          {/* 올림/빌림 행 (Level 1 전용, boxIdx >= 1일 때) */}
+          {showCarryRow && (
+            <View style={styles.row}>
+              <View style={styles.opCol} />
+              {Array.from({ length: padCols }).map((_, i) => (
+                <View key={`cr-pad-${i}`} style={styles.carryCell} />
+              ))}
+              {answerDigits.map((_, i) => {
+                const carry = getCarryForCol(i);
+                return (
+                  <View key={`cr-${i}`} style={styles.carryCell}>
+                    {carry !== null && (
+                      <Text style={styles.carryText}>{carry}</Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          )}
 
           {/* a 행 */}
           <View style={styles.row}>
@@ -287,9 +340,14 @@ export default function MentalScreen() {
           </View>
         )}
 
-        {/* Level 1: 현재 자리 레이블 */}
+        {/* Level 1: 현재 자리 레이블 + 올림 안내 */}
         {mentalLevel === 1 && (
-          <Text style={styles.digitLabel}>{currentLabel}의 자리</Text>
+          <View style={styles.level1Footer}>
+            <Text style={styles.digitLabel}>{currentLabel}의 자리</Text>
+            {boxIdx >= 1 && problemCarries[0] !== null && (
+              <Text style={styles.carryLabel}>{carryLabel} {problemCarries[0]}</Text>
+            )}
+          </View>
         )}
       </View>
 
@@ -355,7 +413,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   grid: {
-    gap: 6,
+    gap: 2,
   },
   row: {
     flexDirection: 'row',
@@ -378,6 +436,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  carryCell: {
+    width: CELL,
+    height: 20,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  carryText: {
+    fontSize: 14,
+    fontFamily: 'Pretendard-Bold',
+    color: '#FF7043',
+    fontVariant: ['tabular-nums'],
+  },
   digit: {
     fontSize: 36,
     fontFamily: 'Pretendard-Bold',
@@ -386,7 +456,7 @@ const styles = StyleSheet.create({
   },
   dividerRow: {
     paddingLeft: 36,
-    paddingVertical: 2,
+    paddingVertical: 4,
   },
   divider: {
     height: 2,
@@ -412,11 +482,20 @@ const styles = StyleSheet.create({
     color: '#2E3A23',
     fontVariant: ['tabular-nums'],
   },
-  digitLabel: {
+  level1Footer: {
     marginTop: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  digitLabel: {
     fontSize: 13,
     fontFamily: 'Pretendard-Medium',
     color: '#6A7B5A',
+  },
+  carryLabel: {
+    fontSize: 12,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#FF7043',
   },
   choices: {
     flexDirection: 'row',

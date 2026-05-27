@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { buildMultTableSession } from '../../src/utils/problems';
 import ProgressBar from '../../src/components/ProgressBar';
 import SeedCounter from '../../src/components/SeedCounter';
 import ComboDisplay from '../../src/components/ComboDisplay';
+import ChoiceButton from '../../src/components/ChoiceButton';
 
 type Status = 'answering' | 'correct' | 'wrong';
 
@@ -17,6 +18,7 @@ export default function MultTableScreen() {
   const insets = useSafeAreaInsets();
 
   const { multTable, recordMultTableResult, checkAndGraduate } = useProgressStore();
+  const multLevel = useProgressStore((s) => s.state.multLevel ?? 0);
   const { config } = useConfigStore();
   const { seeds, combo, addSeed, addMultTableResult, incrementCombo, resetCombo } = useSessionStore();
 
@@ -27,6 +29,7 @@ export default function MultTableScreen() {
   const [input, setInput] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const [status, setStatus] = useState<Status>('answering');
+  const [selected, setSelected] = useState<number | null>(null);
 
   const startTimeRef = useRef(Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -40,30 +43,26 @@ export default function MultTableScreen() {
     setElapsed(0);
     setStatus('answering');
     setInput('');
+    setSelected(null);
 
     timerRef.current = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startTimeRef.current) / 100) / 10);
     }, 100);
 
-    const t = setTimeout(() => inputRef.current?.focus(), 80);
+    if (multLevel === 1) {
+      const t = setTimeout(() => inputRef.current?.focus(), 80);
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        clearTimeout(t);
+      };
+    }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      clearTimeout(t);
     };
-  }, [idx]);
+  }, [idx, multLevel]);
 
-  const handleSubmit = () => {
-    if (status !== 'answering') return;
-    const num = parseInt(input.trim(), 10);
-    if (isNaN(num)) return;
-
-    const timeSec = (Date.now() - startTimeRef.current) / 1000;
-    if (timerRef.current) clearInterval(timerRef.current);
-
-    const correct = num === problem.answer;
-    setStatus(correct ? 'correct' : 'wrong');
-
+  const advance = useCallback((correct: boolean, timeSec: number) => {
     recordMultTableResult(problem.a, problem.b, correct, timeSec, config.multTableTimeSec);
     addMultTableResult({ a: problem.a, b: problem.b, correct, timeSec });
 
@@ -85,19 +84,48 @@ export default function MultTableScreen() {
         setIdx(next);
       }
     }, correct ? 600 : 1000);
-  };
+  }, [problem, idx, problems, config]);
+
+  // Level 0: 객관식
+  const handleLevel0Choice = useCallback((choice: number) => {
+    if (status !== 'answering') return;
+    const timeSec = (Date.now() - startTimeRef.current) / 1000;
+    if (timerRef.current) clearInterval(timerRef.current);
+    const correct = choice === problem.answer;
+    setSelected(choice);
+    setStatus(correct ? 'correct' : 'wrong');
+    advance(correct, timeSec);
+  }, [status, problem, advance]);
+
+  // Level 1: 타이핑
+  const handleSubmit = useCallback(() => {
+    if (status !== 'answering') return;
+    const num = parseInt(input.trim(), 10);
+    if (isNaN(num)) return;
+
+    const timeSec = (Date.now() - startTimeRef.current) / 1000;
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    const correct = num === problem.answer;
+    setStatus(correct ? 'correct' : 'wrong');
+    advance(correct, timeSec);
+  }, [status, input, problem, advance]);
 
   const isOverTime = elapsed > config.multTableTimeSec;
+
+  const choiceState0 = (choice: number) => {
+    if (status === 'answering') return 'default' as const;
+    if (choice === selected) return status as 'correct' | 'wrong';
+    return 'disabled' as const;
+  };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
 
       {/* 헤더 */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>구구단</Text>
-        <View style={styles.progressWrap}>
-          <ProgressBar current={idx} total={problems.length} label={`${idx}/${problems.length}`} />
-        </View>
+        <Text style={styles.headerTitle}>구구단{multLevel === 1 ? ' · 심화' : ''}</Text>
+        <ProgressBar current={idx} total={problems.length} label={`${idx}/${problems.length}`} />
       </View>
 
       {/* 콤보 */}
@@ -110,51 +138,71 @@ export default function MultTableScreen() {
         <Text style={styles.problemText}>
           {problem.a} × {problem.b} = ?
         </Text>
-      </View>
-
-      {/* 입력 필드 */}
-      <View style={[
-        styles.inputRow,
-        status === 'correct' && styles.inputCorrect,
-        status === 'wrong' && styles.inputWrong,
-      ]}>
-        <TextInput
-          ref={inputRef}
-          style={styles.input}
-          value={input}
-          onChangeText={setInput}
-          keyboardType="numeric"
-          returnKeyType="done"
-          onSubmitEditing={handleSubmit}
-          editable={status === 'answering'}
-          placeholder="정답 입력"
-          placeholderTextColor="#B0BEC5"
-          maxLength={3}
-        />
-        {status === 'answering' && input.length > 0 && (
-          <Pressable onPress={() => setInput('')} style={styles.clearBtn}>
-            <Text style={styles.clearText}>✕</Text>
-          </Pressable>
-        )}
-        {status === 'correct' && (
-          <Text style={styles.feedbackIcon}>✓</Text>
-        )}
-        {status === 'wrong' && (
-          <Text style={styles.answerReveal}>{problem.answer}</Text>
+        {multLevel === 0 && status !== 'answering' && (
+          <Text style={[styles.answerReveal, status === 'correct' ? styles.correct : styles.wrong]}>
+            {problem.answer}
+          </Text>
         )}
       </View>
-
-      {/* 확인 버튼 */}
-      {status === 'answering' && input.length > 0 && (
-        <Pressable style={styles.submitBtn} onPress={handleSubmit}>
-          <Text style={styles.submitText}>확인</Text>
-        </Pressable>
-      )}
 
       {/* 타이머 */}
       <Text style={[styles.timer, isOverTime && styles.timerOver]}>
         ⏱ {elapsed.toFixed(1)}초
       </Text>
+
+      {/* Level 0: 객관식 버튼 */}
+      {multLevel === 0 && (
+        <View style={styles.choices}>
+          {problem.choices.map((choice, i) => (
+            <ChoiceButton
+              key={i}
+              label={choice}
+              state={choiceState0(choice)}
+              onPress={() => handleLevel0Choice(choice)}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Level 1: 타이핑 입력 */}
+      {multLevel === 1 && (
+        <>
+          <View style={[
+            styles.inputRow,
+            status === 'correct' && styles.inputCorrect,
+            status === 'wrong' && styles.inputWrong,
+          ]}>
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              value={input}
+              onChangeText={setInput}
+              keyboardType="numeric"
+              returnKeyType="done"
+              onSubmitEditing={handleSubmit}
+              editable={status === 'answering'}
+              placeholder="정답 입력"
+              placeholderTextColor="#B0BEC5"
+              maxLength={3}
+            />
+            {status === 'answering' && input.length > 0 && (
+              <Pressable onPress={() => setInput('')} style={styles.clearBtn}>
+                <Text style={styles.clearText}>✕</Text>
+              </Pressable>
+            )}
+            {status === 'correct' && <Text style={styles.feedbackIcon}>✓</Text>}
+            {status === 'wrong' && (
+              <Text style={styles.wrongReveal}>{problem.answer}</Text>
+            )}
+          </View>
+
+          {status === 'answering' && input.length > 0 && (
+            <Pressable style={styles.submitBtn} onPress={handleSubmit}>
+              <Text style={styles.submitText}>확인</Text>
+            </Pressable>
+          )}
+        </>
+      )}
 
       {/* 씨앗 카운터 */}
       <View style={styles.footer}>
@@ -180,10 +228,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-SemiBold',
     color: '#6A7B5A',
   },
-  progressWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   comboArea: {
     alignItems: 'flex-end',
     minHeight: 36,
@@ -194,12 +238,13 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingVertical: 40,
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.11,
+    shadowRadius: 20,
+    elevation: 8,
+    gap: 8,
   },
   problemText: {
     fontSize: 40,
@@ -207,6 +252,30 @@ const styles = StyleSheet.create({
     color: '#2E3A23',
     fontVariant: ['tabular-nums'],
     letterSpacing: 2,
+  },
+  answerReveal: {
+    fontSize: 28,
+    fontFamily: 'Pretendard-Bold',
+    fontVariant: ['tabular-nums'],
+  },
+  correct: { color: '#4CAF50' },
+  wrong: { color: '#EF5350' },
+  timer: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontFamily: 'Pretendard-Regular',
+    color: '#6A7B5A',
+    marginBottom: 20,
+  },
+  timerOver: {
+    color: '#EF5350',
+    fontFamily: 'Pretendard-SemiBold',
+  },
+  choices: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 24,
   },
   inputRow: {
     flexDirection: 'row',
@@ -234,18 +303,10 @@ const styles = StyleSheet.create({
     color: '#2E3A23',
     fontVariant: ['tabular-nums'],
   },
-  clearBtn: {
-    padding: 8,
-  },
-  clearText: {
-    fontSize: 16,
-    color: '#B0BEC5',
-  },
-  feedbackIcon: {
-    fontSize: 24,
-    color: '#66BB6A',
-  },
-  answerReveal: {
+  clearBtn: { padding: 8 },
+  clearText: { fontSize: 16, color: '#B0BEC5' },
+  feedbackIcon: { fontSize: 24, color: '#66BB6A' },
+  wrongReveal: {
     fontSize: 24,
     fontFamily: 'Pretendard-Bold',
     color: '#EF5350',
@@ -267,17 +328,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Pretendard-Bold',
     color: '#FFFFFF',
-  },
-  timer: {
-    textAlign: 'center',
-    fontSize: 14,
-    fontFamily: 'Pretendard-Regular',
-    color: '#6A7B5A',
-    marginBottom: 8,
-  },
-  timerOver: {
-    color: '#EF5350',
-    fontFamily: 'Pretendard-SemiBold',
   },
   footer: {
     flex: 1,

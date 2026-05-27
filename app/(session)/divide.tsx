@@ -11,14 +11,19 @@ import ProgressBar from '../../src/components/ProgressBar';
 import SeedCounter from '../../src/components/SeedCounter';
 import ComboDisplay from '../../src/components/ComboDisplay';
 
-// 레이아웃 상수
 const CELL = 44;
 const BRACKET_W = 28;
-const DIV_AREA_W = 2 * CELL + BRACKET_W; // 나누는 수 영역 (2자리 + ')')
-const QUOT_W = 2 * CELL;                 // 몫 박스 너비 (2자리)
+const DIV_AREA_W = 2 * CELL + BRACKET_W;
 
-// 몫 박스 좌측 오프셋: DIV_AREA_W + 1 CELL (첫 자리 digit 제외)
-const QUOT_OFFSET = DIV_AREA_W + CELL;
+type FillEntry = { value: number; status: 'correct' | 'revealed' };
+
+// 숫자를 3자리 오른쪽 정렬 셀 배열로 변환 (null = 빈 셀)
+function toRightCells(n: number): (number | null)[] {
+  const s = String(n);
+  const result: (number | null)[] = new Array(3 - s.length).fill(null);
+  for (const ch of s) result.push(Number(ch));
+  return result;
+}
 
 export default function DivideScreen() {
   const router = useRouter();
@@ -28,55 +33,119 @@ export default function DivideScreen() {
 
   const [problems] = useState(() => buildDivideSession(4));
   const [pIdx, setPIdx] = useState(0);
-  const [status, setStatus] = useState<'answering' | 'correct' | 'wrong'>('answering');
-  const [selected, setSelected] = useState<number | null>(null);
+
+  // boxIdx: 0=십의자리, 1=일의자리
+  const [boxIdx, setBoxIdx] = useState(0);
+  const [fills, setFills] = useState<(FillEntry | null)[]>([null, null]);
+  const [isWrong, setIsWrong] = useState(false);
 
   const problem = problems[pIdx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
 
-  const quotBox = problem.boxes[0];
-  const quotState: MathBoxState =
-    status === 'answering' ? 'active' : status === 'correct' ? 'correct' : 'wrong';
-
-  const handleChoice = useCallback(
-    (choice: number) => {
-      if (status !== 'answering') return;
-      const correct = choice === quotBox.answer;
-      setSelected(choice);
-      setStatus(correct ? 'correct' : 'wrong');
-      addBigNumBox();
-
-      if (correct) {
-        addSeed('normal');
-        addBigNumQuestion();
-        incrementCombo(config.comboThreshold1, config.comboThreshold2);
-      } else {
-        resetCombo();
-      }
-
-      setTimeout(() => {
-        const next = pIdx + 1;
-        if (next >= problems.length) {
-          router.push('/(session)/complete');
-        } else {
-          setPIdx(next);
-          setStatus('answering');
-          setSelected(null);
-        }
-      }, correct ? 800 : 1200);
-    },
-    [status, pIdx, problems, quotBox]
-  );
-
-  const choiceButtonState = (choice: number) => {
-    if (status === 'answering') return 'default' as const;
-    if (choice === selected) return status as 'correct' | 'wrong';
-    return 'disabled' as const;
-  };
-
   const divStr = String(problem.dividend).split('').map(Number);
   const divDigit1 = Math.floor(problem.divisor / 10);
   const divDigit2 = problem.divisor % 10;
+
+  const getBoxState = (digitIdx: number): MathBoxState => {
+    if (digitIdx < boxIdx) return fills[digitIdx]?.status ?? 'inactive';
+    if (digitIdx === boxIdx) return isWrong ? 'wrong' : 'active';
+    return 'inactive';
+  };
+
+  const advanceProblem = useCallback(() => {
+    addBigNumQuestion();
+    const next = pIdx + 1;
+    if (next >= problems.length) {
+      router.push('/(session)/complete');
+    } else {
+      setPIdx(next);
+      setBoxIdx(0);
+      setFills([null, null]);
+      setIsWrong(false);
+    }
+  }, [pIdx, problems]);
+
+  const handleChoice = useCallback(
+    (choice: number) => {
+      if (isWrong) return;
+      const box = problem.boxes[boxIdx];
+      const correct = choice === box.answer;
+      addBigNumBox();
+
+      if (correct) {
+        const newFills = [...fills];
+        newFills[boxIdx] = { value: choice, status: 'correct' };
+        addSeed('normal');
+        incrementCombo(config.comboThreshold1, config.comboThreshold2);
+
+        const next = boxIdx + 1;
+        if (next >= 2) {
+          setFills(newFills);
+          setTimeout(() => advanceProblem(), 800);
+        } else {
+          setBoxIdx(next);
+          setFills(newFills);
+        }
+      } else {
+        setIsWrong(true);
+        resetCombo();
+        setTimeout(() => {
+          const newFills = [...fills];
+          newFills[boxIdx] = { value: box.answer, status: 'revealed' };
+          setIsWrong(false);
+          const next = boxIdx + 1;
+          if (next >= 2) {
+            setFills(newFills);
+            setTimeout(() => advanceProblem(), 600);
+          } else {
+            setBoxIdx(next);
+            setFills(newFills);
+          }
+        }, 800);
+      }
+    },
+    [isWrong, boxIdx, fills, problem, advanceProblem, config]
+  );
+
+  const currentBox = problem.boxes[boxIdx];
+
+  // 십의 자리 힌트: divisor × (quotTens-1)*10, divisor × (quotTens+1)*10
+  const tensHints = [
+    { mult: Math.max(1, problem.quotTens - 1) * 10, product: problem.divisor * Math.max(1, problem.quotTens - 1) * 10 },
+    { mult: Math.min(4, problem.quotTens + 1) * 10, product: problem.divisor * Math.min(4, problem.quotTens + 1) * 10 },
+  ];
+
+  // 일의 자리 힌트: divisor × (quotOnes-1), divisor × (quotOnes+1)
+  const onesHints = [
+    problem.quotOnes > 0 && { mult: problem.quotOnes - 1, product: problem.divisor * (problem.quotOnes - 1) },
+    problem.quotOnes < 9 && { mult: problem.quotOnes + 1, product: problem.divisor * (problem.quotOnes + 1) },
+  ].filter(Boolean) as { mult: number; product: number }[];
+
+  const showIntermediate = fills[0] !== null;
+  const showOnesResult = fills[1] !== null;
+
+  // 계산 행 렌더링 헬퍼 (오른쪽 정렬, minus 선택)
+  const renderCalcRow = (n: number, withMinus: boolean) => {
+    const cells = toRightCells(n);
+    const numLen = String(n).length;
+    const padLen = 3 - numLen;
+    const leftOffset = withMinus
+      ? DIV_AREA_W + (padLen - 1) * CELL  // minus 기호 공간 확보
+      : DIV_AREA_W + padLen * CELL;
+    return (
+      <View style={styles.row}>
+        <View style={{ width: Math.max(0, leftOffset) }} />
+        {withMinus && <Text style={styles.minus}>−</Text>}
+        {cells.map((d, i) => (
+          <View key={i} style={styles.cell}>
+            {d !== null && (
+              <Text style={[styles.digit, styles.calcText]}>{d}</Text>
+            )}
+          </View>
+        ))}
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
@@ -95,17 +164,18 @@ export default function DivideScreen() {
       {/* 필산 카드 */}
       <View style={styles.card}>
 
-        {/* 몫 행 — QUOT_OFFSET 만큼 들여쓰기 후 박스 */}
+        {/* 몫 행: 십의 자리 박스 + 일의 자리 박스 */}
         <View style={styles.row}>
-          <View style={{ width: QUOT_OFFSET }} />
-          <MathBox
-            state={quotState}
-            value={status !== 'answering' ? problem.quotient : undefined}
-            width={QUOT_W}
-          />
+          <View style={{ width: DIV_AREA_W + CELL }} />
+          <View style={styles.cell}>
+            <MathBox state={getBoxState(0)} value={fills[0]?.value} width={CELL} />
+          </View>
+          <View style={styles.cell}>
+            <MathBox state={getBoxState(1)} value={fills[1]?.value} width={CELL} />
+          </View>
         </View>
 
-        {/* 나눗셈 행: 나누는 수 ) 피제수 */}
+        {/* 나눗셈 행 */}
         <View style={styles.row}>
           <View style={[styles.divisorArea, { width: DIV_AREA_W }]}>
             <Text style={styles.digit}>{divDigit1}</Text>
@@ -124,62 +194,65 @@ export default function DivideScreen() {
           <View style={[styles.dividerLine, { width: DIV_AREA_W + CELL * 3 }]} />
         </View>
 
-        {/* 정답 후: 계산 과정 표시 */}
-        {status === 'correct' && (
+        {/* 십의 자리 정답 후: tensProduct 빼기 → intermediate */}
+        {showIntermediate && (
           <>
-            <View style={styles.row}>
-              <View style={{ width: QUOT_OFFSET - CELL }} />
-              <Text style={styles.minus}>−</Text>
-              <View style={styles.cell}>
-                <Text style={[styles.digit, styles.calcText]}>{Math.floor(problem.product / 100)}</Text>
-              </View>
-              <View style={styles.cell}>
-                <Text style={[styles.digit, styles.calcText]}>{Math.floor((problem.product % 100) / 10)}</Text>
-              </View>
-              <View style={styles.cell}>
-                <Text style={[styles.digit, styles.calcText]}>{problem.product % 10}</Text>
-              </View>
-            </View>
+            {renderCalcRow(problem.tensProduct, true)}
             <View style={styles.dividerRow}>
               <View style={[styles.dividerLine, { width: DIV_AREA_W + CELL * 3 }]} />
             </View>
-            <View style={styles.row}>
-              <View style={{ width: QUOT_OFFSET }} />
-              <View style={styles.cell}>
-                <Text style={[styles.digit, styles.calcText]}>{Math.floor(problem.remainder / 10)}</Text>
-              </View>
-              <View style={styles.cell}>
-                <Text style={[styles.digit, styles.calcText]}>{problem.remainder % 10}</Text>
-              </View>
-            </View>
+            {renderCalcRow(problem.intermediate, false)}
           </>
         )}
 
-        {/* 어림셈 힌트 */}
-        {status === 'answering' && (
+        {/* 일의 자리 정답 후: onesProduct 빼기 → remainder */}
+        {showOnesResult && (
+          <>
+            {renderCalcRow(problem.onesProduct, true)}
+            <View style={styles.dividerRow}>
+              <View style={[styles.dividerLine, { width: DIV_AREA_W + CELL * 3 }]} />
+            </View>
+            {renderCalcRow(problem.remainder, false)}
+          </>
+        )}
+
+        {/* 힌트 */}
+        {!showIntermediate && (
           <View style={styles.hints}>
-            <Text style={styles.hintsLabel}>어림셈 힌트</Text>
-            {problem.hints.map((h, i) => (
+            <Text style={styles.hintsLabel}>십의 자리 힌트 (앞 두 자리 ÷ {problem.divisor})</Text>
+            {tensHints.map((h, i) => (
               <Text key={i} style={styles.hintLine}>
-                {problem.divisor} × {h.multiplier} = {h.product}
+                {problem.divisor} × {h.mult} = {h.product}
               </Text>
             ))}
           </View>
         )}
 
+        {showIntermediate && !showOnesResult && (
+          <View style={styles.hints}>
+            <Text style={styles.hintsLabel}>일의 자리 힌트 (남은 수 {problem.intermediate} ÷ {problem.divisor})</Text>
+            {onesHints.map((h, i) => (
+              <Text key={i} style={styles.hintLine}>
+                {problem.divisor} × {h.mult} = {h.product}
+              </Text>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* 객관식 보기 */}
-      <View style={styles.choices}>
-        {quotBox.choices.map((choice, i) => (
-          <ChoiceButton
-            key={i}
-            label={choice}
-            state={choiceButtonState(choice)}
-            onPress={() => handleChoice(choice)}
-          />
-        ))}
-      </View>
+      {!showOnesResult && (
+        <View style={styles.choices}>
+          {currentBox.choices.map((choice, i) => (
+            <ChoiceButton
+              key={i}
+              label={choice}
+              state={isWrong ? 'disabled' : 'default'}
+              onPress={() => handleChoice(choice)}
+            />
+          ))}
+        </View>
+      )}
 
       {/* 씨앗 카운터 */}
       <View style={styles.footer}>
@@ -214,13 +287,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 20,
-    marginBottom: 24,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.11,
     shadowRadius: 20,
     elevation: 8,
-    gap: 4,
+    gap: 2,
   },
   row: {
     flexDirection: 'row',
@@ -269,7 +342,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2E3A23',
   },
   hints: {
-    marginTop: 12,
+    marginTop: 8,
     padding: 12,
     backgroundColor: '#F9FBE7',
     borderRadius: 12,

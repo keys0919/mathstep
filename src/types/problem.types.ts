@@ -6,6 +6,7 @@ export interface MultTableProblem {
   a: number;
   b: number;
   answer: number;
+  choices: number[];
 }
 
 export interface MentalProblem {
@@ -30,10 +31,14 @@ export interface DivideProblem {
   dividend: number;
   divisor: number;
   quotient: number;
+  quotTens: number;
+  quotOnes: number;
   remainder: number;
   product: number;
+  tensProduct: number;
+  intermediate: number;
+  onesProduct: number;
   boxes: BoxDef[];
-  hints: { multiplier: number; product: number }[];
 }
 
 export interface BoxDef {

@@ -17,6 +17,7 @@ export interface AppState {
   streak: number;
   lastStudyDate: string | null;
   mentalLevel: 0 | 1;
+  multLevel: 0 | 1;
 }
 
 export interface MultTableEntry {

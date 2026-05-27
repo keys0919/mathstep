@@ -19,6 +19,7 @@ const DEFAULT_STATE: AppState = {
   streak: 0,
   lastStudyDate: null,
   mentalLevel: 0,
+  multLevel: 0,
 };
 
 const DEFAULT_MULT_TABLE: MultTableData = {
