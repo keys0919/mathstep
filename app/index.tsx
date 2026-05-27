@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../src/stores/progress.store';
@@ -51,7 +51,11 @@ export default function HomeScreen() {
 
         {/* 캐릭터 + 인사 */}
         <View style={styles.characterArea}>
-          <Text style={styles.character}>🐰</Text>
+          <Image
+            source={require('../mathstep.png')}
+            style={styles.characterImage}
+            resizeMode="cover"
+          />
           <Text style={styles.greeting}>오늘도 함께 해보자!</Text>
         </View>
 
@@ -121,11 +125,17 @@ const styles = StyleSheet.create({
   },
   characterArea: {
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 16,
+    gap: 12,
+    paddingVertical: 8,
   },
-  character: {
-    fontSize: 80,
+  characterImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 36,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
   },
   greeting: {
     fontSize: 20,
@@ -134,14 +144,14 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 24,
+    padding: 18,
     gap: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.10,
+    shadowRadius: 20,
+    elevation: 8,
   },
   cardHeader: {
     flexDirection: 'row',

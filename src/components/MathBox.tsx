@@ -20,8 +20,8 @@ export default function MathBox({ value, state, onPress, width = 52 }: Props) {
     if (state === 'active') {
       pulseAnim.current = Animated.loop(
         Animated.sequence([
-          Animated.timing(borderOpacity, { toValue: 0.4, duration: 600, useNativeDriver: true }),
-          Animated.timing(borderOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+          Animated.timing(borderOpacity, { toValue: 0.35, duration: 700, useNativeDriver: true }),
+          Animated.timing(borderOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
         ])
       );
       pulseAnim.current.start();
@@ -31,20 +31,36 @@ export default function MathBox({ value, state, onPress, width = 52 }: Props) {
     }
 
     if (state === 'correct') {
-      Animated.sequence([
-        Animated.timing(scale, { toValue: 1.12, duration: 100, useNativeDriver: true }),
-        Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
-      ]).start();
+      // spring pop: 빠르게 튀어오르고 자연스럽게 안착
+      Animated.spring(scale, {
+        toValue: 1.18,
+        useNativeDriver: true,
+        friction: 4,
+        tension: 250,
+      }).start(() => {
+        Animated.spring(scale, {
+          toValue: 1,
+          useNativeDriver: true,
+          friction: 6,
+          tension: 120,
+        }).start();
+      });
     }
 
     if (state === 'wrong') {
       Animated.sequence([
-        Animated.timing(translateX, { toValue: -6, duration: 50, useNativeDriver: true }),
-        Animated.timing(translateX, { toValue: 6, duration: 50, useNativeDriver: true }),
-        Animated.timing(translateX, { toValue: -4, duration: 50, useNativeDriver: true }),
-        Animated.timing(translateX, { toValue: 4, duration: 50, useNativeDriver: true }),
-        Animated.timing(translateX, { toValue: 0, duration: 50, useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: -7, duration: 45, useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: 7, duration: 45, useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: -5, duration: 45, useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: 5, duration: 45, useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: -3, duration: 45, useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: 0, duration: 45, useNativeDriver: true }),
       ]).start();
+    }
+
+    if (state === 'inactive' || state === 'revealed') {
+      scale.setValue(1);
+      translateX.setValue(0);
     }
   }, [state]);
 
@@ -53,7 +69,7 @@ export default function MathBox({ value, state, onPress, width = 52 }: Props) {
     active: '#FFFFFF',
     correct: '#66BB6A',
     wrong: '#FFEBEE',
-    revealed: '#F5F5F5',
+    revealed: '#F0F4E8',
   }[state];
 
   const textColor = {
@@ -75,9 +91,11 @@ export default function MathBox({ value, state, onPress, width = 52 }: Props) {
           styles.box,
           { width, backgroundColor: bg },
           showBorder && { borderWidth: 2, borderColor },
+          state === 'correct' && styles.correctShadow,
+          state === 'active' && styles.activeShadow,
         ]}
       >
-        {showBorder && state === 'active' && (
+        {state === 'active' && (
           <Animated.View
             style={[StyleSheet.absoluteFill, styles.pulseBorder, { opacity: borderOpacity, borderColor }]}
           />
@@ -94,17 +112,31 @@ const styles = StyleSheet.create({
   box: {
     height: 52,
     minWidth: 44,
-    borderRadius: 12,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
+  activeShadow: {
+    shadowColor: '#4CAF50',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  correctShadow: {
+    shadowColor: '#66BB6A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   pulseBorder: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 2,
   },
   text: {
-    fontSize: 28,
+    fontSize: 32,
     fontFamily: 'Pretendard-Bold',
     fontVariant: ['tabular-nums'],
   },

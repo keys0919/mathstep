@@ -11,14 +11,21 @@ interface Props {
 
 export default function ChoiceButton({ label, state = 'default', onPress }: Props) {
   const translateY = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
     if (state !== 'default') return;
-    Animated.timing(translateY, { toValue: 2, duration: 80, useNativeDriver: true }).start();
+    Animated.parallel([
+      Animated.timing(translateY, { toValue: 3, duration: 80, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 0.97, duration: 80, useNativeDriver: true }),
+    ]).start();
   };
 
   const handlePressOut = () => {
-    Animated.timing(translateY, { toValue: 0, duration: 80, useNativeDriver: true }).start();
+    Animated.parallel([
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, friction: 6, tension: 200 }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 200 }),
+    ]).start();
   };
 
   const bg = {
@@ -36,16 +43,14 @@ export default function ChoiceButton({ label, state = 'default', onPress }: Prop
   }[state];
 
   const bottomBorderColor = {
-    default: '#D1D5DB',
+    default: '#C8CDD4',
     correct: '#388E3C',
     wrong: '#C62828',
     disabled: '#E0E0E0',
   }[state];
 
-  const isPressed = state === 'default';
-
   return (
-    <Animated.View style={{ transform: [{ translateY }] }}>
+    <Animated.View style={{ transform: [{ translateY }, { scale }] }}>
       <Pressable
         onPress={state === 'default' ? onPress : undefined}
         onPressIn={handlePressIn}
@@ -63,21 +68,21 @@ export default function ChoiceButton({ label, state = 'default', onPress }: Prop
 
 const styles = StyleSheet.create({
   button: {
-    minWidth: 100,
-    height: 52,
-    borderRadius: 14,
+    minWidth: 104,
+    height: 56,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    borderBottomWidth: 3,
+    paddingHorizontal: 20,
+    borderBottomWidth: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 10,
+    elevation: 6,
   },
   label: {
-    fontSize: 22,
+    fontSize: 24,
     fontFamily: 'Pretendard-Bold',
     fontVariant: ['tabular-nums'],
   },

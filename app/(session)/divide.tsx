@@ -216,10 +216,10 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.11,
+    shadowRadius: 20,
+    elevation: 8,
     gap: 4,
   },
   row: {
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   digit: {
-    fontSize: 32,
+    fontSize: 36,
     fontFamily: 'Pretendard-Bold',
     color: '#2E3A23',
     fontVariant: ['tabular-nums'],
