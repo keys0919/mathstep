@@ -67,16 +67,16 @@ export default function MultiplyScreen() {
         if (nextP >= problems.length) {
           router.push('/(session)/divide');
         } else {
-          setPIdx(nextP);
           setBoxIdx(0);
           setFills(new Array(problems[nextP].boxes.length).fill(null));
+          setPIdx(nextP);
         }
       } else {
         setBoxIdx(next);
         setFills(newFills);
       }
     },
-    [problem, problems, pIdx]
+    [problem, problems, pIdx, addBigNumQuestion, router]
   );
 
   const handleChoice = useCallback(

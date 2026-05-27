@@ -100,7 +100,7 @@ export default function MentalScreen() {
         return;
       }
       setIdx(next);
-      if (mentalLevel === 1) {
+      if (mentalLevel === 0) {
         setBoxIdx(0);
         setFills(new Array(String(problems[next].answer).length).fill(null));
         setIsWrong(false);
@@ -178,7 +178,7 @@ export default function MentalScreen() {
   );
 
   const currentDigitChoices = useMemo(() => {
-    if (mentalLevel !== 1) return [];
+    if (mentalLevel !== 0) return [];
     const fillIdx = activationOrder[Math.min(boxIdx, activationOrder.length - 1)];
     return digitChoices(answerDigits[fillIdx]);
   }, [mentalLevel, boxIdx, idx]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -221,7 +221,7 @@ export default function MentalScreen() {
 
   // 올림/빌림 힌트: 일의 자리 풀이 후(boxIdx>=1) 십의 자리 열에 표시
   // 십의 자리 풀이 후(boxIdx>=2) 백의 자리 열에 표시 (3자리 답인 경우)
-  const showCarryRow = mentalLevel === 1;
+  const showCarryRow = mentalLevel === 0;
   const getCarryForCol = (digitIdx: number): number | null => {
     // digitIdx: answerDigits 배열에서의 인덱스 (0=가장 왼쪽)
     // ones→tens carry: answerDigits.length-2 위치, boxIdx>=1일 때
@@ -308,7 +308,7 @@ export default function MentalScreen() {
             ))}
             {answerDigits.map((digit, i) => (
               <View key={i} style={styles.cell}>
-                {mentalLevel === 0 ? (
+                {mentalLevel === 1 ? (
                   <MathBox
                     state={level0BoxState}
                     value={
@@ -332,16 +332,16 @@ export default function MentalScreen() {
           </View>
         </View>
 
-        {/* Level 0: 힌트 */}
-        {mentalLevel === 0 && status === 'answering' && (
+        {/* Level 1: 힌트 (전체 답 방식) */}
+        {mentalLevel === 1 && status === 'answering' && (
           <View style={styles.hint}>
             <Text style={styles.hintLabel}>힌트</Text>
             <Text style={styles.hintText}>{hintText}</Text>
           </View>
         )}
 
-        {/* Level 1: 현재 자리 레이블 + 올림 안내 */}
-        {mentalLevel === 1 && (
+        {/* Level 0: 현재 자리 레이블 + 올림 안내 */}
+        {mentalLevel === 0 && (
           <View style={styles.level1Footer}>
             <Text style={styles.digitLabel}>{currentLabel}의 자리</Text>
             {boxIdx >= 1 && problemCarries[0] !== null && (
@@ -353,7 +353,7 @@ export default function MentalScreen() {
 
       {/* 객관식 보기 */}
       <View style={styles.choices}>
-        {mentalLevel === 0
+        {mentalLevel === 1
           ? problem.choices.map((choice, i) => (
               <ChoiceButton
                 key={i}

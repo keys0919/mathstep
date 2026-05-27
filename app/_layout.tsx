@@ -23,6 +23,9 @@ export default function RootLayout() {
     loadProgress();
     if (Platform.OS === 'web' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/mathstep/sw.js').catch(() => {});
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
     }
   }, []);
 
