@@ -2,10 +2,23 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../src/stores/progress.store';
+import { loadData, todayStr } from '../src/utils/storage';
 
 function formatDate(dateStr: string): string {
   const [, m, d] = dateStr.split('-');
   return `${Number(m)}월 ${Number(d)}일`;
+}
+
+function exportJson() {
+  const data = loadData();
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mathstep-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function HistoryScreen() {
@@ -18,9 +31,14 @@ export default function HistoryScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← 뒤로</Text>
-        </Pressable>
+        <View style={styles.headerRow}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Text style={styles.backText}>← 뒤로</Text>
+          </Pressable>
+          <Pressable onPress={exportJson} style={styles.exportBtn}>
+            <Text style={styles.exportText}>JSON 내보내기</Text>
+          </Pressable>
+        </View>
         <Text style={styles.title}>학습 히스토리</Text>
       </View>
 
@@ -97,6 +115,11 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: 20,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   backBtn: {
     paddingVertical: 4,
   },
@@ -104,6 +127,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Pretendard-Medium',
     color: '#6A7B5A',
+  },
+  exportBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    backgroundColor: '#E8EFE0',
+    borderRadius: 8,
+  },
+  exportText: {
+    fontSize: 13,
+    fontFamily: 'Pretendard-Medium',
+    color: '#4CAF50',
   },
   title: {
     fontSize: 22,
