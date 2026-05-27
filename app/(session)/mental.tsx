@@ -367,11 +367,14 @@ export default function MentalScreen() {
         {/* Level 0: 현재 자리 레이블 + 올림 안내 */}
         {mentalLevel === 0 && (
           <View style={styles.level1Footer}>
-            {pendingCarryCheck
-              ? <Text style={styles.digitLabel}>{carryLabel} 수는?</Text>
-              : <Text style={styles.digitLabel}>{currentLabel}의 자리</Text>
-            }
-            {boxIdx >= 1 && problemCarries[0] !== null && (
+            {pendingCarryCheck ? (
+              <View style={styles.carryPrompt}>
+                <Text style={styles.carryPromptText}>{carryLabel} 수는?</Text>
+              </View>
+            ) : (
+              <Text style={styles.digitLabel}>{currentLabel}의 자리</Text>
+            )}
+            {!pendingCarryCheck && boxIdx >= 1 && problemCarries[0] !== null && (
               <Text style={styles.carryLabel}>{carryLabel} {problemCarries[0]}</Text>
             )}
           </View>
@@ -527,6 +530,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Pretendard-Medium',
     color: '#6A7B5A',
+  },
+  carryPrompt: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    marginTop: 4,
+  },
+  carryPromptText: {
+    fontSize: 20,
+    fontFamily: 'Pretendard-Bold',
+    color: '#FF7043',
+    textAlign: 'center',
   },
   carryLabel: {
     fontSize: 12,

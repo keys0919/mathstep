@@ -271,15 +271,19 @@ export default function MultiplyScreen() {
       </View>
 
       {/* 현재 칸 위치 힌트 */}
-      <Text style={styles.hint}>
-        {pendingCarryCheck
-          ? '올림 수는?'
-          : boxIdx < P2_START
-          ? `${problem.a} × ${problem.b % 10} 계산 중`
-          : boxIdx < SUM_START
-          ? `${problem.a} × ${Math.floor(problem.b / 10)} 계산 중`
-          : '합산 중'}
-      </Text>
+      {pendingCarryCheck ? (
+        <View style={styles.carryPrompt}>
+          <Text style={styles.carryPromptText}>올림 수는?</Text>
+        </View>
+      ) : (
+        <Text style={styles.hint}>
+          {boxIdx < P2_START
+            ? `${problem.a} × ${problem.b % 10} 계산 중`
+            : boxIdx < SUM_START
+            ? `${problem.a} × ${Math.floor(problem.b / 10)} 계산 중`
+            : '합산 중'}
+        </Text>
+      )}
 
       {/* 객관식 보기 */}
       <View style={styles.choices}>
@@ -411,6 +415,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-Regular',
     color: '#6A7B5A',
     marginBottom: 16,
+  },
+  carryPrompt: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 32,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  carryPromptText: {
+    fontSize: 20,
+    fontFamily: 'Pretendard-Bold',
+    color: '#FF7043',
+    textAlign: 'center',
   },
   choices: {
     flexDirection: 'row',
