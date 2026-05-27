@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mathstep-1779867718395';
+const CACHE_NAME = 'mathstep-1779924915632';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
