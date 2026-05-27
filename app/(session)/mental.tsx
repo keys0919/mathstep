@@ -78,6 +78,8 @@ export default function MentalScreen() {
   );
   const [isWrong, setIsWrong] = useState(false);
   const hadWrongRef = useRef(false);
+  const [pendingCarryCheck, setPendingCarryCheck] = useState(false);
+  const pendingNextBoxRef = useRef(0);
 
   const problem = problems[idx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
@@ -107,6 +109,7 @@ export default function MentalScreen() {
         setBoxIdx(0);
         setFills(new Array(String(problems[next].answer).length).fill(null));
         setIsWrong(false);
+        setPendingCarryCheck(false);
         hadWrongRef.current = false;
       } else {
         setSelected(null);
@@ -153,6 +156,11 @@ export default function MentalScreen() {
           addMentalResult(!hadWrongRef.current);
           setFills(newFills);
           setTimeout(() => advanceProblem(idx + 1), 500);
+        } else if (problemCarries[0] !== null) {
+          // 올림/빌림이 있으면 carry 입력 단계
+          pendingNextBoxRef.current = next;
+          setFills(newFills);
+          setPendingCarryCheck(true);
         } else {
           setBoxIdx(next);
           setFills(newFills);
@@ -180,6 +188,21 @@ export default function MentalScreen() {
     [isWrong, boxIdx, fills, answerDigits, activationOrder, idx, advanceProblem, config]
   );
 
+  const handleCarryChoice = useCallback((choice: number) => {
+    const correct = choice === problemCarries[0];
+    if (!correct) hadWrongRef.current = true;
+    setPendingCarryCheck(false);
+    setBoxIdx(pendingNextBoxRef.current);
+  }, [problemCarries]);
+
+  const carryChoices = useMemo(() => {
+    const carry = problemCarries[0];
+    if (carry === null) return [];
+    if (carry <= 1) return [0, 1];
+    const set = new Set([carry, Math.max(0, carry - 1), Math.min(8, carry + 1)]);
+    return [...set].sort((a, b) => a - b);
+  }, [problemCarries]);
+
   const currentDigitChoices = useMemo(() => {
     if (mentalLevel !== 0) return [];
     const fillIdx = activationOrder[Math.min(boxIdx, activationOrder.length - 1)];
@@ -187,9 +210,9 @@ export default function MentalScreen() {
   }, [mentalLevel, boxIdx, idx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getLevel1BoxState = (digitIdx: number): MathBoxState => {
+    if (fills[digitIdx] !== null) return fills[digitIdx]!.status;
     const step = activationOrder.indexOf(digitIdx);
-    if (step < boxIdx) return fills[digitIdx]?.status ?? 'inactive';
-    if (step === boxIdx) return isWrong ? 'wrong' : 'active';
+    if (step === boxIdx && !pendingCarryCheck) return isWrong ? 'wrong' : 'active';
     return 'inactive';
   };
 
@@ -218,7 +241,7 @@ export default function MentalScreen() {
   const digitLabels2 = ['십', '일'];
   const digitLabels3 = ['백', '십', '일'];
   const digitLabels = answerDigits.length === 2 ? digitLabels2 : digitLabels3;
-  const currentLabel = mentalLevel === 1
+  const currentLabel = mentalLevel === 0
     ? digitLabels[activationOrder[Math.min(boxIdx, activationOrder.length - 1)]]
     : '';
 
@@ -346,7 +369,10 @@ export default function MentalScreen() {
         {/* Level 0: 현재 자리 레이블 + 올림 안내 */}
         {mentalLevel === 0 && (
           <View style={styles.level1Footer}>
-            <Text style={styles.digitLabel}>{currentLabel}의 자리</Text>
+            {pendingCarryCheck
+              ? <Text style={styles.digitLabel}>{carryLabel} 수는?</Text>
+              : <Text style={styles.digitLabel}>{currentLabel}의 자리</Text>
+            }
             {boxIdx >= 1 && problemCarries[0] !== null && (
               <Text style={styles.carryLabel}>{carryLabel} {problemCarries[0]}</Text>
             )}
@@ -363,6 +389,15 @@ export default function MentalScreen() {
                 label={choice}
                 state={choiceState0(choice)}
                 onPress={() => handleLevel0Choice(choice)}
+              />
+            ))
+          : pendingCarryCheck
+          ? carryChoices.map((choice, i) => (
+              <ChoiceButton
+                key={i}
+                label={choice}
+                state="default"
+                onPress={() => handleCarryChoice(choice)}
               />
             ))
           : currentDigitChoices.map((choice, i) => (
