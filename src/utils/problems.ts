@@ -107,7 +107,7 @@ export function buildMentalSession(count: number): MentalProblem[] {
       answer = a + b;
     } else if (op === '-') {
       a = randomInt(30, 99);
-      b = randomInt(10, a - 5);
+      b = randomInt(10, a - 10);
       answer = a - b;
     } else {
       a = randomInt(12, 49);
