@@ -153,7 +153,7 @@ export default function MultTableScreen() {
 
       {/* 콤보 */}
       <View style={styles.comboArea}>
-        <ComboDisplay combo={combo} threshold={config.comboThreshold1} />
+        <ComboDisplay combo={combo} threshold={config.comboThreshold2} />
       </View>
 
       {/* 문제 카드 */}

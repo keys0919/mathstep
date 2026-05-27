@@ -1,9 +1,25 @@
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../src/stores/progress.store';
 import { useConfigStore } from '../src/stores/config.store';
 import { MapId } from '../src/types/progress.types';
+
+const CHARACTER_STAGES = [
+  { minSeeds: 0,  maxSeeds: 4,  image: require('../assets/characters/1.png'), label: '씨앗 단계' },
+  { minSeeds: 5,  maxSeeds: 14, image: require('../assets/characters/2.png'), label: '새싹 단계' },
+  { minSeeds: 15, maxSeeds: 29, image: require('../assets/characters/3.png'), label: '꽃 단계' },
+  { minSeeds: 30, maxSeeds: 49, image: require('../assets/characters/4.png'), label: '나무 단계' },
+  { minSeeds: 50, maxSeeds: Infinity, image: require('../assets/characters/5.png'), label: '마스터 단계' },
+];
+
+function getCharacterStage(totalSeeds: number) {
+  let stage = CHARACTER_STAGES[0];
+  for (const s of CHARACTER_STAGES) {
+    if (totalSeeds >= s.minSeeds) stage = s;
+  }
+  return stage;
+}
 
 const MAP_ORDER: MapId[] = ['forest', 'flower', 'ocean', 'sky'];
 
@@ -36,6 +52,9 @@ export default function GardenScreen() {
 
   const completedMaps: MapId[] = state.completedMaps ?? [];
   const recent = [...sessions].reverse().slice(0, 7);
+  const totalSeeds = allSeeds.normal + allSeeds.rare + allSeeds.special;
+  const charStage = getCharacterStage(totalSeeds);
+  const nextStage = CHARACTER_STAGES.find(s => s.minSeeds > totalSeeds);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -47,6 +66,34 @@ export default function GardenScreen() {
             <Text style={styles.backText}>← 뒤로</Text>
           </Pressable>
           <Text style={styles.title}>내 정원</Text>
+        </View>
+
+        {/* 캐릭터 단계 카드 */}
+        <View style={styles.charCard}>
+          <Image source={charStage.image} style={styles.charImage} resizeMode="contain" />
+          <View style={styles.charInfo}>
+            <Text style={styles.charStageLabel}>{charStage.label}</Text>
+            <Text style={styles.charSeedCount}>씨앗 {totalSeeds}개</Text>
+            {nextStage ? (
+              <View style={styles.charProgressRow}>
+                <View style={styles.charTrack}>
+                  <View
+                    style={[
+                      styles.charFill,
+                      {
+                        width: `${Math.round(
+                          ((totalSeeds - charStage.minSeeds) / (nextStage.minSeeds - charStage.minSeeds)) * 100
+                        )}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.charNext}>다음까지 {nextStage.minSeeds - totalSeeds}개</Text>
+              </View>
+            ) : (
+              <Text style={styles.charMaxed}>최고 단계 달성! 👑</Text>
+            )}
+          </View>
         </View>
 
         {/* 맵 격자 */}
@@ -168,6 +215,64 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: 'Pretendard-Bold',
     color: '#2E3A23',
+  },
+  charCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  charImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 20,
+  },
+  charInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  charStageLabel: {
+    fontSize: 16,
+    fontFamily: 'Pretendard-Bold',
+    color: '#2E3A23',
+  },
+  charSeedCount: {
+    fontSize: 13,
+    fontFamily: 'Pretendard-Regular',
+    color: '#6A7B5A',
+  },
+  charProgressRow: {
+    gap: 4,
+    marginTop: 4,
+  },
+  charTrack: {
+    height: 6,
+    backgroundColor: '#E8EFE0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  charFill: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 3,
+  },
+  charNext: {
+    fontSize: 11,
+    fontFamily: 'Pretendard-Regular',
+    color: '#6A7B5A',
+  },
+  charMaxed: {
+    fontSize: 13,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#4CAF50',
+    marginTop: 4,
   },
   mapGrid: {
     flexDirection: 'row',

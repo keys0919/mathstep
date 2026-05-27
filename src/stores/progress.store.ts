@@ -64,7 +64,15 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       }
     }
 
-    const nextSessions = [...data.sessions, record];
+    // 스트릭 보너스 씨앗 (3일: 희귀, 7일: 특별)
+    const bonusRecord = { ...record, seeds: { ...record.seeds } };
+    if (streak > 0 && streak % 7 === 0) {
+      bonusRecord.seeds.special += 1;
+    } else if (streak > 0 && streak % 3 === 0) {
+      bonusRecord.seeds.rare += 1;
+    }
+
+    const nextSessions = [...data.sessions, bonusRecord];
 
     // 암산 레벨 승급: 최근 3세션 정답률 ≥ 80%
     let mentalLevel = data.state.mentalLevel ?? 0;

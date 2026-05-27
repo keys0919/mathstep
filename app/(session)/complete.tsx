@@ -107,6 +107,17 @@ export default function CompleteScreen() {
         />
       </Animated.View>
 
+      {/* 다음 도전 힌트 (Zeigarnik) */}
+      <Animated.View style={[styles.nextCard, { opacity: statsOpacity }]}>
+        <NextChallenges
+          maxCombo={maxCombo}
+          comboTarget={config.comboThreshold2}
+          multMissed={multTableResults.length - multTableResults.filter(r => r.correct).length}
+          mentalMissed={mentalTotal - mentalCorrect}
+          streak={state.streak}
+        />
+      </Animated.View>
+
       <View style={styles.spacer} />
 
       {/* 홈 버튼 */}
@@ -121,6 +132,41 @@ export default function CompleteScreen() {
         <Text style={styles.gardenBtnText}>정원 보기</Text>
       </Pressable>
 
+    </View>
+  );
+}
+
+function NextChallenges({
+  maxCombo, comboTarget, multMissed, mentalMissed, streak,
+}: {
+  maxCombo: number; comboTarget: number; multMissed: number; mentalMissed: number; streak: number;
+}) {
+  const hints: string[] = [];
+
+  if (streak > 0 && streak % 7 === 0) {
+    hints.push(`🎉 ${streak}일 연속! 특별 씨앗 보너스 획득!`);
+  } else if (streak > 0 && streak % 3 === 0) {
+    hints.push(`🎉 ${streak}일 연속! 희귀 씨앗 보너스 획득!`);
+  }
+
+  if (maxCombo < comboTarget) {
+    hints.push(`콤보 ${comboTarget - maxCombo}개만 더! 🌺 희귀 씨앗이 기다려!`);
+  }
+  if (multMissed > 0) {
+    hints.push(`구구단 ${multMissed}문제만 더 맞히면 ✨ 특별 씨앗!`);
+  }
+  if (mentalMissed > 0) {
+    hints.push(`암산 ${mentalMissed}문제만 더 맞히면 ✨ 특별 씨앗!`);
+  }
+
+  if (hints.length === 0) return null;
+
+  return (
+    <View style={styles.nextInner}>
+      <Text style={styles.nextTitle}>내일 도전!</Text>
+      {hints.map((h, i) => (
+        <Text key={i} style={styles.nextHint}>• {h}</Text>
+      ))}
     </View>
   );
 }
@@ -242,6 +288,27 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-SemiBold',
     color: '#2E3A23',
     fontVariant: ['tabular-nums'],
+  },
+  nextCard: {
+    marginBottom: 4,
+  },
+  nextInner: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 16,
+    padding: 14,
+    gap: 6,
+  },
+  nextTitle: {
+    fontSize: 13,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#4CAF50',
+    marginBottom: 2,
+  },
+  nextHint: {
+    fontSize: 14,
+    fontFamily: 'Pretendard-Medium',
+    color: '#2E3A23',
+    lineHeight: 20,
   },
   spacer: {
     flex: 1,
