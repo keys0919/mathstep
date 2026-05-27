@@ -174,6 +174,25 @@ export default function MultTableScreen() {
         ⏱ {elapsed.toFixed(1)}초
       </Text>
 
+      {/* 오답: 왜 그 답인지 구구단 맥락 */}
+      {status === 'wrong' && !retrying && (
+        <View style={styles.whyCard}>
+          {problem.b > 2 && (
+            <Text style={styles.whyRow}>
+              {problem.a} × {problem.b - 1} = {problem.a * (problem.b - 1)}
+            </Text>
+          )}
+          <Text style={[styles.whyRow, styles.whyCurrent]}>
+            {problem.a} × {problem.b} = {problem.answer}
+          </Text>
+          {problem.b < 9 && (
+            <Text style={styles.whyRow}>
+              {problem.a} × {problem.b + 1} = {problem.a * (problem.b + 1)}
+            </Text>
+          )}
+        </View>
+      )}
+
       {/* 재도전 안내 */}
       {retrying && (
         <Text style={styles.retryLabel}>다시 한 번!</Text>
@@ -306,6 +325,27 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-SemiBold',
     color: '#FF7043',
     marginBottom: 8,
+  },
+  whyCard: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginBottom: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  whyRow: {
+    fontSize: 16,
+    fontFamily: 'Pretendard-Medium',
+    color: '#8D9E7A',
+    fontVariant: ['tabular-nums'],
+  },
+  whyCurrent: {
+    fontSize: 20,
+    fontFamily: 'Pretendard-Bold',
+    color: '#FF7043',
+    fontVariant: ['tabular-nums'],
   },
   choices: {
     flexDirection: 'row',
