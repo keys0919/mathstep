@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "째이 수학",
+    "slug": "mathstep",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "mathstep",
+    "icon": "./assets/icons/icon-512.png",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mathstep.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icons/icon-512.png",
+        "backgroundColor": "#F9FBE7"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.mathstep.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/icons/icon-192.png",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "baseUrl": "/mathstep"
+    }
+  }
+}

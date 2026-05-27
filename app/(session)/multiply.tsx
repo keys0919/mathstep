@@ -1,0 +1,329 @@
+import { useState, useCallback } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useConfigStore } from '../../src/stores/config.store';
+import { useSessionStore } from '../../src/stores/session.store';
+import { buildMultiplySession } from '../../src/utils/problems';
+import MathBox, { MathBoxState } from '../../src/components/MathBox';
+import ChoiceButton from '../../src/components/ChoiceButton';
+import ProgressBar from '../../src/components/ProgressBar';
+import SeedCounter from '../../src/components/SeedCounter';
+import ComboDisplay from '../../src/components/ComboDisplay';
+
+const OP_W = 36;
+const CELL = 44;
+const COLS = 4; // 천, 백, 십, 일
+
+type FillEntry = { value: number; status: 'correct' | 'revealed' };
+
+// box 인덱스 범위
+// boxes[0..2]  = partial1 (백,십,일)
+// boxes[3..5]  = partial2 (백,십,일)
+// boxes[6..9]  = sum     (천,백,십,일)
+const P1_START = 0;
+const P2_START = 3;
+const SUM_START = 6;
+
+// 활성화 순서: 각 행에서 오른쪽(일)→왼쪽(백/천)
+const ACTIVATION_ORDER = [2, 1, 0, 5, 4, 3, 9, 8, 7, 6];
+
+export default function MultiplyScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { config } = useConfigStore();
+  const { seeds, combo, addSeed, addBigNumBox, addBigNumQuestion, incrementCombo, resetCombo } = useSessionStore();
+
+  const [problems] = useState(() => buildMultiplySession(3));
+  const [pIdx, setPIdx] = useState(0);
+  const [boxIdx, setBoxIdx] = useState(0);
+  const [fills, setFills] = useState<(FillEntry | null)[]>(() =>
+    new Array(problems[0].boxes.length).fill(null)
+  );
+  const [isWrong, setIsWrong] = useState(false);
+
+  const problem = problems[pIdx];
+  const totalSeeds = seeds.normal + seeds.rare + seeds.special;
+
+  const p1Cells = String(problem.partial1).padStart(3, '0').split('').map(Number);
+  const p2Cells = String(problem.partial2).padStart(3, '0').split('').map(Number);
+  const sumCells = String(problem.sum).padStart(4, '0').split('').map(Number);
+
+  const getBoxState = (gIdx: number): MathBoxState => {
+    const step = ACTIVATION_ORDER.indexOf(gIdx);
+    if (step < boxIdx) return fills[gIdx]?.status ?? 'inactive';
+    if (step === boxIdx) return isWrong ? 'wrong' : 'active';
+    return 'inactive';
+  };
+
+  const getBoxValue = (gIdx: number): number | undefined =>
+    ACTIVATION_ORDER.indexOf(gIdx) < boxIdx ? fills[gIdx]?.value : undefined;
+
+  const advanceTo = useCallback(
+    (next: number, newFills: (FillEntry | null)[]) => {
+      if (next >= problem.boxes.length) {
+        addBigNumQuestion();
+        const nextP = pIdx + 1;
+        if (nextP >= problems.length) {
+          router.push('/(session)/divide');
+        } else {
+          setPIdx(nextP);
+          setBoxIdx(0);
+          setFills(new Array(problems[nextP].boxes.length).fill(null));
+        }
+      } else {
+        setBoxIdx(next);
+        setFills(newFills);
+      }
+    },
+    [problem, problems, pIdx]
+  );
+
+  const handleChoice = useCallback(
+    (choice: number) => {
+      if (isWrong) return;
+      const gIdx = ACTIVATION_ORDER[boxIdx];
+      const box = problem.boxes[gIdx];
+      const correct = choice === box.answer;
+      addBigNumBox();
+
+      if (correct) {
+        const newFills = [...fills];
+        newFills[gIdx] = { value: choice, status: 'correct' };
+        addSeed('normal');
+        incrementCombo(config.comboThreshold1, config.comboThreshold2);
+        setTimeout(() => advanceTo(boxIdx + 1, newFills), 300);
+      } else {
+        setIsWrong(true);
+        resetCombo();
+        setTimeout(() => {
+          const newFills = [...fills];
+          newFills[gIdx] = { value: box.answer, status: 'revealed' };
+          setIsWrong(false);
+          advanceTo(boxIdx + 1, newFills);
+        }, 800);
+      }
+    },
+    [boxIdx, fills, isWrong, problem, advanceTo]
+  );
+
+  const currentBox = problem.boxes[ACTIVATION_ORDER[Math.min(boxIdx, ACTIVATION_ORDER.length - 1)]];
+
+  // 헬퍼: 숫자 셀
+  const D = (n: number, key: string) => (
+    <View key={key} style={styles.cell}>
+      <Text style={styles.digit}>{n}</Text>
+    </View>
+  );
+
+  // 헬퍼: 빈 셀
+  const E = (key: string) => <View key={key} style={styles.cell} />;
+
+  // 헬퍼: 들여쓰기 셀 (partial2 우측)
+  const Indent = () => <View style={[styles.cell, styles.indentCell]} />;
+
+  // 헬퍼: MathBox 셀
+  const B = (gIdx: number, key: string) => (
+    <View key={key} style={styles.cell}>
+      <MathBox state={getBoxState(gIdx)} value={getBoxValue(gIdx)} width={CELL} />
+    </View>
+  );
+
+  const aStr = String(problem.a).split('').map(Number);
+  const bStr = String(problem.b).split('').map(Number);
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
+
+      {/* 헤더 */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>세자리수 곱셈</Text>
+        <ProgressBar current={pIdx} total={problems.length} label={`${pIdx}/${problems.length}`} />
+      </View>
+
+      {/* 콤보 */}
+      <View style={styles.comboArea}>
+        <ComboDisplay combo={combo} threshold={config.comboThreshold1} />
+      </View>
+
+      {/* 필산 카드 */}
+      <View style={styles.card}>
+        <View style={styles.grid}>
+
+          {/* a 행: col 0 빈, col 1~3 = a의 세 자리 */}
+          <View style={styles.row}>
+            <View style={styles.opCol} />
+            {E('a-0')}
+            {aStr.map((d, i) => D(d, `a-${i + 1}`))}
+          </View>
+
+          {/* × b 행: col 0~1 빈, col 2~3 = b의 두 자리 */}
+          <View style={styles.row}>
+            <View style={styles.opCol}>
+              <Text style={styles.op}>×</Text>
+            </View>
+            {E('b-0')}
+            {E('b-1')}
+            {bStr.map((d, i) => D(d, `b-${i + 2}`))}
+          </View>
+
+          {/* 가로줄 1 */}
+          <Divider />
+
+          {/* partial1 행: col 0 빈, col 1~3 = 3자리 부분곱 박스 */}
+          <View style={styles.row}>
+            <View style={styles.opCol} />
+            {E('p1-0')}
+            {p1Cells.map((_, i) => B(P1_START + i, `p1-${i + 1}`))}
+          </View>
+
+          {/* partial2 행: col 0~2 = 3자리 부분곱 박스 + 들여쓰기 */}
+          <View style={styles.row}>
+            <View style={styles.opCol} />
+            {p2Cells.map((_, i) => B(P2_START + i, `p2-${i}`))}
+            <Indent />
+          </View>
+
+          {/* 가로줄 2 */}
+          <Divider />
+
+          {/* sum 행: col 0~3 = 4자리 합산 박스 */}
+          <View style={styles.row}>
+            <View style={styles.opCol} />
+            {sumCells.map((_, i) => B(SUM_START + i, `sum-${i}`))}
+          </View>
+
+        </View>
+      </View>
+
+      {/* 현재 칸 위치 힌트 */}
+      <Text style={styles.hint}>
+        {boxIdx < P2_START
+          ? `${problem.a} × ${problem.b % 10} 계산 중`
+          : boxIdx < SUM_START
+          ? `${problem.a} × ${Math.floor(problem.b / 10)} 계산 중`
+          : '합산 중'}
+      </Text>
+
+      {/* 객관식 보기 */}
+      <View style={styles.choices}>
+        {currentBox.choices.map((choice, i) => (
+          <ChoiceButton
+            key={i}
+            label={choice}
+            state={isWrong ? 'disabled' : 'default'}
+            onPress={() => handleChoice(choice)}
+          />
+        ))}
+      </View>
+
+      {/* 씨앗 카운터 */}
+      <View style={styles.footer}>
+        <SeedCounter count={totalSeeds} />
+      </View>
+
+    </View>
+  );
+}
+
+function Divider() {
+  return (
+    <View style={styles.dividerRow}>
+      <View style={[styles.dividerLine, { width: (COLS + 0.8) * CELL }]} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#F9FBE7',
+    paddingHorizontal: 16,
+  },
+  header: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 15,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#6A7B5A',
+  },
+  comboArea: {
+    alignItems: 'flex-end',
+    minHeight: 36,
+    marginBottom: 12,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  grid: {
+    gap: 4,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  opCol: {
+    width: OP_W,
+    height: CELL,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  op: {
+    fontSize: 28,
+    fontFamily: 'Pretendard-Bold',
+    color: '#2E3A23',
+  },
+  cell: {
+    width: CELL,
+    height: CELL,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  indentCell: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+  },
+  digit: {
+    fontSize: 32,
+    fontFamily: 'Pretendard-Bold',
+    color: '#2E3A23',
+    fontVariant: ['tabular-nums'],
+  },
+  dividerRow: {
+    paddingLeft: OP_W,
+    paddingVertical: 4,
+  },
+  dividerLine: {
+    height: 2,
+    backgroundColor: '#2E3A23',
+  },
+  hint: {
+    textAlign: 'center',
+    fontSize: 13,
+    fontFamily: 'Pretendard-Regular',
+    color: '#6A7B5A',
+    marginBottom: 16,
+  },
+  choices: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  footer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+  },
+});

@@ -1,0 +1,50 @@
+export type Phase = 'mult-table' | 'mental' | 'multiply' | 'divide' | 'complete';
+
+export type MentalOp = '+' | '-' | '*';
+
+export interface MultTableProblem {
+  a: number;
+  b: number;
+  answer: number;
+}
+
+export interface MentalProblem {
+  op: MentalOp;
+  a: number;
+  b: number;
+  answer: number;
+  choices: number[];
+}
+
+export interface MultiplyProblem {
+  a: number;
+  b: number;
+  partial1: number;
+  partial2: number;
+  sum: number;
+  p1Len: number;
+  boxes: BoxDef[];
+}
+
+export interface DivideProblem {
+  dividend: number;
+  divisor: number;
+  quotient: number;
+  remainder: number;
+  product: number;
+  boxes: BoxDef[];
+  hints: { multiplier: number; product: number }[];
+}
+
+export interface BoxDef {
+  id: string;
+  answer: number;
+  choices: number[];
+}
+
+export interface MultTableResult {
+  a: number;
+  b: number;
+  correct: boolean;
+  timeSec: number;
+}
