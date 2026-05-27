@@ -56,14 +56,13 @@ export default function MultiplyScreen() {
   const sumCells = String(problem.sum).padStart(4, '0').split('').map(Number);
 
   const getBoxState = (gIdx: number): MathBoxState => {
+    if (fills[gIdx] !== null) return fills[gIdx]!.status;
     const step = ACTIVATION_ORDER.indexOf(gIdx);
-    if (step < boxIdx) return fills[gIdx]?.status ?? 'inactive';
-    if (step === boxIdx) return isWrong ? 'wrong' : 'active';
+    if (step === boxIdx && !pendingCarryCheck) return isWrong ? 'wrong' : 'active';
     return 'inactive';
   };
 
-  const getBoxValue = (gIdx: number): number | undefined =>
-    ACTIVATION_ORDER.indexOf(gIdx) < boxIdx ? fills[gIdx]?.value : undefined;
+  const getBoxValue = (gIdx: number): number | undefined => fills[gIdx]?.value;
 
   const advanceTo = useCallback(
     (next: number, newFills: (FillEntry | null)[]) => {
