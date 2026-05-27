@@ -30,6 +30,7 @@ export default function MultTableScreen() {
   const [elapsed, setElapsed] = useState(0);
   const [status, setStatus] = useState<Status>('answering');
   const [selected, setSelected] = useState<number | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   const startTimeRef = useRef(Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -44,6 +45,7 @@ export default function MultTableScreen() {
     setStatus('answering');
     setInput('');
     setSelected(null);
+    setRetrying(false);
 
     timerRef.current = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startTimeRef.current) / 100) / 10);
@@ -63,19 +65,41 @@ export default function MultTableScreen() {
   }, [idx, multLevel]);
 
   const advance = useCallback((correct: boolean, timeSec: number) => {
-    recordMultTableResult(problem.a, problem.b, correct, timeSec, config.multTableTimeSec);
-    addMultTableResult({ a: problem.a, b: problem.b, correct, timeSec });
-
-    if (correct) {
-      addSeed('normal');
-      incrementCombo(config.comboThreshold1, config.comboThreshold2);
-      if (timeSec <= config.multTableTimeSec) {
-        checkAndGraduate(problem.a, problem.b, config.multTableGradSessions);
+    // 최초 시도에서만 기록
+    if (!retrying) {
+      recordMultTableResult(problem.a, problem.b, correct, timeSec, config.multTableTimeSec);
+      addMultTableResult({ a: problem.a, b: problem.b, correct, timeSec });
+      if (correct) {
+        addSeed('normal');
+        incrementCombo(config.comboThreshold1, config.comboThreshold2);
+        if (timeSec <= config.multTableTimeSec) {
+          checkAndGraduate(problem.a, problem.b, config.multTableGradSessions);
+        }
+      } else {
+        resetCombo();
       }
-    } else {
-      resetCombo();
     }
 
+    // 최초 오답: 정답 보여준 후 같은 문제 재출제
+    if (!correct && !retrying) {
+      setTimeout(() => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        startTimeRef.current = Date.now();
+        setElapsed(0);
+        setRetrying(true);
+        setStatus('answering');
+        setSelected(null);
+        setInput('');
+        timerRef.current = setInterval(() => {
+          setElapsed(Math.floor((Date.now() - startTimeRef.current) / 100) / 10);
+        }, 100);
+        if (multLevel === 1) setTimeout(() => inputRef.current?.focus(), 80);
+      }, 1000);
+      return;
+    }
+
+    // 다음 문제로
+    setRetrying(false);
     setTimeout(() => {
       const next = idx + 1;
       if (next >= problems.length) {
@@ -83,8 +107,8 @@ export default function MultTableScreen() {
       } else {
         setIdx(next);
       }
-    }, correct ? 600 : 1000);
-  }, [problem, idx, problems, config]);
+    }, correct ? 600 : 800);
+  }, [retrying, multLevel, problem, idx, problems, config]);
 
   // Level 0: 객관식
   const handleLevel0Choice = useCallback((choice: number) => {
@@ -149,6 +173,11 @@ export default function MultTableScreen() {
       <Text style={[styles.timer, isOverTime && styles.timerOver]}>
         ⏱ {elapsed.toFixed(1)}초
       </Text>
+
+      {/* 재도전 안내 */}
+      {retrying && (
+        <Text style={styles.retryLabel}>다시 한 번!</Text>
+      )}
 
       {/* Level 0: 객관식 버튼 */}
       {multLevel === 0 && (
@@ -270,6 +299,13 @@ const styles = StyleSheet.create({
   timerOver: {
     color: '#EF5350',
     fontFamily: 'Pretendard-SemiBold',
+  },
+  retryLabel: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#FF7043',
+    marginBottom: 8,
   },
   choices: {
     flexDirection: 'row',

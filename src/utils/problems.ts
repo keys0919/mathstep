@@ -22,7 +22,7 @@ export function buildMultTableSession(
       if (isGraduated) continue;
 
       // 7~9단 집중: 한쪽이라도 7 이상이면 가중치 3, 아니면 1
-      const baseWeight = (a >= 7 || b >= 7) ? 3 : 1;
+      const baseWeight = (a >= 7 && b >= 7) ? 6 : (a >= 7 || b >= 7) ? 4 : 1;
 
       const entry = multTable.weak[key];
       const weakBonus = entry && (entry.errors > 0 || entry.slowCount > 0) ? 2 : 0;
