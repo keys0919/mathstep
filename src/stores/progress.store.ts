@@ -54,9 +54,11 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     const sessionsPerMap = data.config.sessionsPerMap;
     let currentMap = data.state.currentMap;
     let finalSessions = sessionsCompleted;
+    let completedMaps = [...(data.state.completedMaps ?? [])];
     if (sessionsCompleted >= sessionsPerMap) {
       const idx = MAP_ORDER.indexOf(currentMap);
       if (idx < MAP_ORDER.length - 1) {
+        if (!completedMaps.includes(currentMap)) completedMaps.push(currentMap);
         currentMap = MAP_ORDER[idx + 1];
         finalSessions = 0;
       }
@@ -94,6 +96,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       lastStudyDate: today,
       mentalLevel,
       multLevel,
+      completedMaps,
     };
 
     saveData({ ...data, state: nextState, sessions: nextSessions });

@@ -46,12 +46,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const { combo, maxCombo, seeds } = get();
     const next = combo + 1;
     const newMax = Math.max(maxCombo, next);
-    let newSeeds = { ...seeds };
-    if (next === threshold2) {
-      newSeeds = { ...newSeeds, special: newSeeds.special + 1 };
-    } else if (next === threshold1) {
-      newSeeds = { ...newSeeds, rare: newSeeds.rare + 1 };
-    }
+    // 콤보 threshold2 달성 시 희귀 씨앗 1개 (실시간 지급)
+    const newSeeds = next === threshold2
+      ? { ...seeds, rare: seeds.rare + 1 }
+      : seeds;
     set({ combo: next, maxCombo: newMax, seeds: newSeeds });
   },
 

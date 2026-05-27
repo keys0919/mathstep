@@ -70,7 +70,6 @@ export default function MultTableScreen() {
       recordMultTableResult(problem.a, problem.b, correct, timeSec, config.multTableTimeSec);
       addMultTableResult({ a: problem.a, b: problem.b, correct, timeSec });
       if (correct) {
-        addSeed('normal');
         incrementCombo(config.comboThreshold1, config.comboThreshold2);
         if (timeSec <= config.multTableTimeSec) {
           checkAndGraduate(problem.a, problem.b, config.multTableGradSessions);

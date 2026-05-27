@@ -20,6 +20,7 @@ const DEFAULT_STATE: AppState = {
   lastStudyDate: null,
   mentalLevel: 0,
   multLevel: 0,
+  completedMaps: [],
 };
 
 const DEFAULT_MULT_TABLE: MultTableData = {

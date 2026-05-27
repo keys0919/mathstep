@@ -18,6 +18,7 @@ export interface AppState {
   lastStudyDate: string | null;
   mentalLevel: 0 | 1;
   multLevel: 0 | 1;
+  completedMaps: MapId[];
 }
 
 export interface MultTableEntry {

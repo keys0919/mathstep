@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +6,7 @@ import { useSessionStore } from '../../src/stores/session.store';
 import { useProgressStore } from '../../src/stores/progress.store';
 import { useConfigStore } from '../../src/stores/config.store';
 import { todayStr } from '../../src/utils/storage';
+import { SessionSeeds } from '../../src/types/progress.types';
 
 const MAP_LABEL: Record<string, string> = {
   forest: '숲', flower: '꽃밭', ocean: '바다정원', sky: '하늘정원',
@@ -17,15 +18,15 @@ const MAP_COLOR: Record<string, string> = {
 export default function CompleteScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { seeds, maxCombo, multTableResults, mentalCorrect, mentalTotal, bigNumBoxes, bigNumQuestions } = useSessionStore();
+  const { seeds: sessionSeeds, maxCombo, multTableResults, mentalCorrect, mentalTotal, bigNumBoxes, bigNumQuestions, addSeed } = useSessionStore();
   const { saveSession, state } = useProgressStore();
   const { config } = useConfigStore();
 
   const savedRef = useRef(false);
   const seedScale = useRef(new Animated.Value(0)).current;
   const statsOpacity = useRef(new Animated.Value(0)).current;
+  const [finalSeeds, setFinalSeeds] = useState<SessionSeeds>(sessionSeeds);
 
-  const totalSeeds = seeds.normal + seeds.rare + seeds.special;
   const mapColor = MAP_COLOR[state.currentMap] ?? '#4CAF50';
   const mapLabel = MAP_LABEL[state.currentMap] ?? '숲';
 
@@ -39,9 +40,18 @@ export default function CompleteScreen() {
         ? correctResults.reduce((acc, r) => acc + r.timeSec, 0) / correctResults.length
         : 0;
 
+    // 씨앗 결산
+    addSeed('normal');  // 세션 완료 기본 1개
+    const isMultPerfect = multTableResults.length > 0 && correctResults.length === multTableResults.length;
+    const isMentalPerfect = mentalTotal > 0 && mentalCorrect === mentalTotal;
+    if (isMultPerfect || isMentalPerfect) addSeed('special');
+
+    const computed = useSessionStore.getState().seeds;
+    setFinalSeeds(computed);
+
     saveSession({
       date: todayStr(),
-      seeds,
+      seeds: computed,
       maxCombo,
       multTable: {
         correct: correctResults.length,
@@ -71,11 +81,11 @@ export default function CompleteScreen() {
       {/* 씨앗 카드 */}
       <Animated.View style={[styles.seedCard, { transform: [{ scale: seedScale }] }]}>
         <Text style={styles.seedCardTitle}>오늘 획득한 씨앗</Text>
-        <Text style={styles.totalSeeds}>{totalSeeds}개</Text>
+        <Text style={styles.totalSeeds}>{finalSeeds.normal + finalSeeds.rare + finalSeeds.special}개</Text>
         <View style={styles.seedRow}>
-          <SeedItem emoji="🌱" count={seeds.normal} label="일반" />
-          <SeedItem emoji="🌺" count={seeds.rare} label="희귀" />
-          <SeedItem emoji="✨" count={seeds.special} label="특별" />
+          <SeedItem emoji="🌱" count={finalSeeds.normal} label="세션 완료" />
+          <SeedItem emoji="🌺" count={finalSeeds.rare} label={`콤보 ${config.comboThreshold2}+`} />
+          <SeedItem emoji="✨" count={finalSeeds.special} label="100% 달성" />
         </View>
       </Animated.View>
 

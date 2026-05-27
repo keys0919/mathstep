@@ -2,22 +2,17 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../src/stores/progress.store';
+import { useConfigStore } from '../src/stores/config.store';
+import { MapId } from '../src/types/progress.types';
 
-const GROWTH_STAGES = [
-  { threshold: 0,  emoji: '🌱', label: '새싹' },
-  { threshold: 10, emoji: '🌿', label: '성장 중' },
-  { threshold: 30, emoji: '🪴', label: '무럭무럭' },
-  { threshold: 60, emoji: '🌳', label: '나무로 성장' },
-  { threshold: 100, emoji: '🌲', label: '완성' },
-];
+const MAP_ORDER: MapId[] = ['forest', 'flower', 'ocean', 'sky'];
 
-function getGrowthStage(totalSeeds: number) {
-  let stage = GROWTH_STAGES[0];
-  for (const s of GROWTH_STAGES) {
-    if (totalSeeds >= s.threshold) stage = s;
-  }
-  return stage;
-}
+const MAP_INFO: Record<MapId, { label: string; emoji: string; color: string }> = {
+  forest: { label: '숲', emoji: '🌲', color: '#4CAF50' },
+  flower: { label: '꽃밭', emoji: '🌸', color: '#FF80AB' },
+  ocean:  { label: '바다', emoji: '🪸', color: '#40C4FF' },
+  sky:    { label: '하늘', emoji: '⭐', color: '#CE93D8' },
+};
 
 function formatDate(dateStr: string): string {
   const [, m, d] = dateStr.split('-');
@@ -27,7 +22,8 @@ function formatDate(dateStr: string): string {
 export default function GardenScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { sessions } = useProgressStore();
+  const { sessions, state } = useProgressStore();
+  const { config } = useConfigStore();
 
   const allSeeds = sessions.reduce(
     (acc, s) => ({
@@ -37,9 +33,8 @@ export default function GardenScreen() {
     }),
     { normal: 0, rare: 0, special: 0 }
   );
-  const totalSeeds = allSeeds.normal + allSeeds.rare + allSeeds.special;
-  const stage = getGrowthStage(totalSeeds);
 
+  const completedMaps: MapId[] = state.completedMaps ?? [];
   const recent = [...sessions].reverse().slice(0, 7);
 
   return (
@@ -54,16 +49,48 @@ export default function GardenScreen() {
           <Text style={styles.title}>내 정원</Text>
         </View>
 
-        {/* 성장 단계 카드 */}
-        <View style={styles.stageCard}>
-          <Text style={styles.stageEmoji}>{stage.emoji}</Text>
-          <Text style={styles.stageLabel}>{stage.label}</Text>
-          <Text style={styles.stageSeedCount}>씨앗 {totalSeeds}개 보유</Text>
-          <View style={styles.seedTotalRow}>
-            <Text style={styles.seedTypeText}>🌱 {allSeeds.normal}</Text>
-            <Text style={styles.seedTypeText}>🌺 {allSeeds.rare}</Text>
-            <Text style={styles.seedTypeText}>✨ {allSeeds.special}</Text>
-          </View>
+        {/* 맵 격자 */}
+        <View style={styles.mapGrid}>
+          {MAP_ORDER.map((mapId) => {
+            const info = MAP_INFO[mapId];
+            const isDone = completedMaps.includes(mapId);
+            const isCurrent = state.currentMap === mapId;
+            const isLocked = !isDone && !isCurrent;
+            return (
+              <View
+                key={mapId}
+                style={[
+                  styles.mapCell,
+                  isDone && styles.mapCellDone,
+                  isCurrent && styles.mapCellCurrent,
+                  isLocked && styles.mapCellLocked,
+                ]}
+              >
+                <Text style={[styles.mapEmoji, isLocked && styles.emojiLocked]}>
+                  {isLocked ? '🔒' : info.emoji}
+                </Text>
+                <Text style={[styles.mapLabel, isLocked && styles.labelLocked]}>
+                  {info.label}
+                </Text>
+                {isDone && <Text style={styles.mapDoneTag}>완성!</Text>}
+                {isCurrent && (
+                  <Text style={styles.mapProgressText}>
+                    {state.sessionsCompleted}/{config.sessionsPerMap}
+                  </Text>
+                )}
+              </View>
+            );
+          })}
+        </View>
+
+        {/* 씨앗 현황 + 획득 조건 */}
+        <Text style={styles.sectionLabel}>씨앗 현황</Text>
+        <View style={styles.seedCard}>
+          <SeedRow emoji="🌱" count={allSeeds.normal} condition="세션 완료" color="#4CAF50" />
+          <View style={styles.seedDivider} />
+          <SeedRow emoji="🌺" count={allSeeds.rare} condition={`콤보 ${config.comboThreshold2}+ 달성`} color="#FF80AB" />
+          <View style={styles.seedDivider} />
+          <SeedRow emoji="✨" count={allSeeds.special} condition="100% 정답" color="#FF9800" />
         </View>
 
         {/* 최근 세션 기록 */}
@@ -81,15 +108,9 @@ export default function GardenScreen() {
                 <View key={i} style={styles.sessionRow}>
                   <Text style={styles.sessionDate}>{formatDate(s.date)}</Text>
                   <View style={styles.sessionSeeds}>
-                    {s.seeds.normal > 0 && (
-                      <Text style={styles.seedChip}>🌱×{s.seeds.normal}</Text>
-                    )}
-                    {s.seeds.rare > 0 && (
-                      <Text style={styles.seedChip}>🌺×{s.seeds.rare}</Text>
-                    )}
-                    {s.seeds.special > 0 && (
-                      <Text style={styles.seedChip}>✨×{s.seeds.special}</Text>
-                    )}
+                    {s.seeds.normal > 0 && <Text style={styles.seedChip}>🌱×{s.seeds.normal}</Text>}
+                    {s.seeds.rare > 0 && <Text style={styles.seedChip}>🌺×{s.seeds.rare}</Text>}
+                    {s.seeds.special > 0 && <Text style={styles.seedChip}>✨×{s.seeds.special}</Text>}
                   </View>
                   <Text style={styles.sessionTotal}>{daySeeds}개</Text>
                   {s.maxCombo > 0 && (
@@ -102,6 +123,18 @@ export default function GardenScreen() {
         )}
 
       </ScrollView>
+    </View>
+  );
+}
+
+function SeedRow({ emoji, count, condition, color }: { emoji: string; count: number; condition: string; color: string }) {
+  return (
+    <View style={styles.seedRow}>
+      <Text style={styles.seedEmoji}>{emoji}</Text>
+      <View style={styles.seedInfo}>
+        <Text style={styles.seedCondition}>{condition}</Text>
+      </View>
+      <Text style={[styles.seedCount, { color }]}>×{count}</Text>
     </View>
   );
 }
@@ -136,41 +169,62 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-Bold',
     color: '#2E3A23',
   },
-  stageCard: {
+  mapGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  mapCell: {
+    width: '47%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 20,
+    paddingVertical: 20,
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
   },
-  stageEmoji: {
-    fontSize: 72,
-    marginBottom: 4,
+  mapCellDone: {
+    borderWidth: 2,
+    borderColor: '#4CAF50',
   },
-  stageLabel: {
-    fontSize: 18,
+  mapCellCurrent: {
+    borderWidth: 2,
+    borderColor: '#FFB300',
+  },
+  mapCellLocked: {
+    backgroundColor: '#F5F5F5',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  mapEmoji: {
+    fontSize: 48,
+  },
+  emojiLocked: {
+    opacity: 0.4,
+  },
+  mapLabel: {
+    fontSize: 15,
     fontFamily: 'Pretendard-SemiBold',
     color: '#2E3A23',
   },
-  stageSeedCount: {
-    fontSize: 14,
-    fontFamily: 'Pretendard-Regular',
-    color: '#6A7B5A',
+  labelLocked: {
+    color: '#BDBDBD',
   },
-  seedTotalRow: {
-    flexDirection: 'row',
-    gap: 20,
-    marginTop: 8,
-  },
-  seedTypeText: {
-    fontSize: 16,
+  mapDoneTag: {
+    fontSize: 12,
     fontFamily: 'Pretendard-Medium',
-    color: '#2E3A23',
+    color: '#4CAF50',
+    marginTop: 2,
+  },
+  mapProgressText: {
+    fontSize: 12,
+    fontFamily: 'Pretendard-Regular',
+    color: '#FFB300',
+    marginTop: 2,
     fontVariant: ['tabular-nums'],
   },
   sectionLabel: {
@@ -178,6 +232,45 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-SemiBold',
     color: '#6A7B5A',
     paddingHorizontal: 4,
+  },
+  seedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 4,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  seedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 12,
+  },
+  seedDivider: {
+    height: 1,
+    backgroundColor: '#F0F4E8',
+  },
+  seedEmoji: {
+    fontSize: 28,
+    width: 36,
+    textAlign: 'center',
+  },
+  seedInfo: {
+    flex: 1,
+  },
+  seedCondition: {
+    fontSize: 14,
+    fontFamily: 'Pretendard-Medium',
+    color: '#2E3A23',
+  },
+  seedCount: {
+    fontSize: 18,
+    fontFamily: 'Pretendard-Bold',
+    fontVariant: ['tabular-nums'],
   },
   emptyBox: {
     padding: 24,
