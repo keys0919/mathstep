@@ -234,7 +234,7 @@ export default function HomeScreen() {
         <Text style={styles.startBtnSub}>완료하면 씨앗 +1 획득</Text>
       </Pressable>
 
-      <View style={{ height: 28 }} />
+      <View style={{ height: insets.bottom + 24 }} />
     </View>
   );
 }
