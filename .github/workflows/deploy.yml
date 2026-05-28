@@ -33,6 +33,10 @@ jobs:
 
       - name: Build
         run: npx expo export -p web
+        timeout-minutes: 3
+        env:
+          EXPO_NO_TELEMETRY: 1
+          CI: 1
 
       - name: Inject SW version
         run: sed -i "s/__BUILD_VERSION__/${{ github.run_id }}/g" dist/sw.js
