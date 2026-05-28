@@ -160,7 +160,7 @@ export default function HomeScreen() {
         </View>
 
         {/* 캐릭터 이미지 */}
-        <View style={[styles.charImgWrap, { width: charSize, height: charSize }]}>
+        <View style={[styles.charImgWrap, { width: charSize, height: charSize, backgroundColor: mapBg }]}>
           <Image
             source={CHAR_IMAGES[stage.imgIdx]}
             style={styles.charImg}
@@ -326,7 +326,6 @@ const styles = StyleSheet.create({
   charImgWrap: {
     overflow: 'hidden',
     borderRadius: 20,
-    backgroundColor: 'transparent',
   },
   charImg: {
     width: '100%',
