@@ -34,7 +34,7 @@ export default function MultiplyScreen() {
   const { config } = useConfigStore();
   const { seeds, combo, addSeed, addBigNumBox, addBigNumQuestion, addLog, incrementCombo, resetCombo } = useSessionStore();
 
-  const [problems] = useState(() => buildMultiplySession(2));
+  const [problems] = useState(() => buildMultiplySession(3));
   const [pIdx, setPIdx] = useState(0);
   const [boxIdx, setBoxIdx] = useState(0);
   const [fills, setFills] = useState<(FillEntry | null)[]>(() =>
