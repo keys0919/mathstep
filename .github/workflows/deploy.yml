@@ -33,9 +33,10 @@ jobs:
 
       - name: Build
         run: npx expo export -p web
-        timeout-minutes: 3
+        timeout-minutes: 8
         env:
           EXPO_NO_TELEMETRY: 1
+          EXPO_OFFLINE: 1
           CI: 1
 
       - name: Inject SW version
