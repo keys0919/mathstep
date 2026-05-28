@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../../src/stores/progress.store';
 import { loadData, saveData, todayStr } from '../../src/utils/storage';
@@ -9,7 +9,7 @@ function formatDate(dateStr: string): string {
 }
 
 function exportJson() {
-  if (Platform.OS !== 'web') return;
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
   const data = loadData();
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
@@ -22,7 +22,7 @@ function exportJson() {
 }
 
 function importJson() {
-  if (Platform.OS !== 'web') return;
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.json';
@@ -34,14 +34,14 @@ function importJson() {
       try {
         const data = JSON.parse(e.target?.result as string);
         if (!data.sessions || !data.state) {
-          alert('올바른 백업 파일이 아닙니다.');
+          window.alert('올바른 백업 파일이 아닙니다.');
           return;
         }
         saveData(data);
-        alert('가져오기 완료. 앱을 새로고침합니다.');
+        window.alert('가져오기 완료. 앱을 새로고침합니다.');
         window.location.reload();
       } catch {
-        alert('파일을 읽을 수 없습니다.');
+        window.alert('파일을 읽을 수 없습니다.');
       }
     };
     reader.readAsText(file);
