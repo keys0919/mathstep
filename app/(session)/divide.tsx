@@ -31,7 +31,7 @@ export default function DivideScreen() {
   const { config } = useConfigStore();
   const { seeds, combo, addSeed, addBigNumBox, addBigNumQuestion, addLog, incrementCombo, resetCombo } = useSessionStore();
 
-  const [problems] = useState(() => buildDivideSession(4));
+  const [problems] = useState(() => buildDivideSession(3));
   const [pIdx, setPIdx] = useState(0);
 
   // boxIdx: 0=십의자리, 1=일의자리
