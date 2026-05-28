@@ -46,7 +46,7 @@ function getCellDisplay(cell: GardenCell | null): string {
 
 export default function GardenScreen() {
   const { width: screenW } = useWindowDimensions();
-  const CELL_SIZE = Math.floor((screenW - 16 * 2 - 12 * 2 - 4 * 3) / 4);
+  const CELL_SIZE = Math.max(48, Math.floor(((screenW || 375) - 16 * 2 - 12 * 2 - 4 * 3) / 4));
   const insets = useSafeAreaInsets();
   const { sessions, state } = useProgressStore();
   const { garden, load, placeCell, removeCell } = useGardenStore();
