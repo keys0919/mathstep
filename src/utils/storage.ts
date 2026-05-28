@@ -1,4 +1,4 @@
-import { AppData, Config, AppState, MultTableData } from '../types/progress.types';
+import { AppData, Config, AppState, MultTableData, GardenData } from '../types/progress.types';
 
 const STORAGE_KEY = 'mathstep';
 
@@ -28,12 +28,26 @@ const DEFAULT_MULT_TABLE: MultTableData = {
   weak: {},
 };
 
+function defaultGarden(): GardenData {
+  return {
+    zones: {
+      forest: Array(16).fill(null),
+      flower: Array(16).fill(null),
+      ocean: Array(16).fill(null),
+      sky: Array(16).fill(null),
+    },
+    spentSeeds: { normal: 0, rare: 0, special: 0 },
+    lastVisit: null,
+  };
+}
+
 function defaultData(): AppData {
   return {
     config: { ...DEFAULT_CONFIG },
     state: { ...DEFAULT_STATE },
     multTable: { graduated: [], weak: {} },
     sessions: [],
+    garden: defaultGarden(),
   };
 }
 
@@ -47,6 +61,7 @@ export function loadData(): AppData {
       state: { ...DEFAULT_STATE, ...parsed.state },
       multTable: { ...DEFAULT_MULT_TABLE, ...parsed.multTable },
       sessions: parsed.sessions ?? [],
+      garden: parsed.garden ?? defaultGarden(),
     };
   } catch {
     return defaultData();

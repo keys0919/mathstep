@@ -1,445 +1,448 @@
-import { View, Text, StyleSheet, ScrollView, Image, ImageSourcePropType } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../../src/stores/progress.store';
-import { useConfigStore } from '../../src/stores/config.store';
-import { MapId } from '../../src/types/progress.types';
-
-const CHAR_IMAGES = [
-  require('../../assets/characters/1.png'),
-  require('../../assets/characters/2.png'),
-  require('../../assets/characters/3.png'),
-  require('../../assets/characters/4.png'),
-  require('../../assets/characters/5.png'),
-];
-
-const CHAR_STAGES = [
-  { minSeeds: 0,  imgIdx: 0, label: '씨앗 단계' },
-  { minSeeds: 5,  imgIdx: 1, label: '새싹 단계' },
-  { minSeeds: 15, imgIdx: 2, label: '꽃 단계' },
-  { minSeeds: 30, imgIdx: 3, label: '나무 단계' },
-  { minSeeds: 50, imgIdx: 4, label: '마스터' },
-];
-
-function getStage(n: number) {
-  let s = CHAR_STAGES[0];
-  for (const st of CHAR_STAGES) { if (n >= st.minSeeds) s = st; }
-  return s;
-}
+import { useGardenStore } from '../../src/stores/garden.store';
+import { MapId, GardenCell } from '../../src/types/progress.types';
+import { SHOP_ITEMS, ShopItem, SEED_ICON, ShopCategory } from '../../src/data/garden.data';
 
 const MAP_ORDER: MapId[] = ['forest', 'flower', 'ocean', 'sky'];
+const ANIMAL_MAX = 2;
 
-// Kenney Nature Kit 스프라이트 (static require)
-const NATURE = {
-  tree_oak:        require('../../assets/nature/tree_oak.png'),
-  tree_small:      require('../../assets/nature/tree_small.png'),
-  tree_palm:       require('../../assets/nature/tree_palm.png'),
-  tree_pine:       require('../../assets/nature/tree_pine.png'),
-  tree_pine_small: require('../../assets/nature/tree_pine_small.png'),
-  plant_bush:      require('../../assets/nature/plant_bush.png'),
-  plant_bush_lg:   require('../../assets/nature/plant_bush_large.png'),
-  flower_red:      require('../../assets/nature/flower_red.png'),
-  flower_purple:   require('../../assets/nature/flower_purple.png'),
-  flower_yellow:   require('../../assets/nature/flower_yellow.png'),
-  grass_leafs:     require('../../assets/nature/grass_leafs.png'),
-  sprout_a:        require('../../assets/nature/sprout_a.png'),
-  sprout_b:        require('../../assets/nature/sprout_b.png'),
+const ZONE_CONFIG: Record<MapId, { label: string; bg: string; accent: string; ground: string }> = {
+  forest: { label: '🌲 숲',   bg: '#DCEDC8', accent: '#388E3C', ground: '#A5D6A7' },
+  flower: { label: '🌸 꽃밭', bg: '#FCE4EC', accent: '#C2185B', ground: '#F8BBD0' },
+  ocean:  { label: '🌊 바다', bg: '#E1F5FE', accent: '#0277BD', ground: '#FFF9C4' },
+  sky:    { label: '☁️ 하늘', bg: '#EDE7F6', accent: '#7B1FA2', ground: '#B3E5FC' },
 };
 
-const ICONS = {
-  locked: require('../../assets/icons/locked.png'),
-  trophy: require('../../assets/icons/trophy.png'),
-  star:   require('../../assets/icons/star.png'),
-};
+// Plant growth stages: 5min → 30min → grown
+function getPlantStage(plantedAt?: number): 0 | 1 | 2 {
+  if (!plantedAt) return 2;
+  const ms = Date.now() - plantedAt;
+  if (ms < 5 * 60_000)  return 0;
+  if (ms < 30 * 60_000) return 1;
+  return 2;
+}
 
-type SpriteSpec = { src: ImageSourcePropType; w: number; h: number };
-type ZoneConfig = {
-  label: string; bg: string; accent: string;
-  sprites: SpriteSpec[];
-};
-
-const MAP_ZONES: Record<MapId, ZoneConfig> = {
-  forest: {
-    label: '숲',      bg: '#A5D6A7', accent: '#388E3C',
-    sprites: [
-      { src: NATURE.tree_oak,   w: 38, h: 68 },
-      { src: NATURE.plant_bush, w: 28, h: 20 },
-    ],
-  },
-  flower: {
-    label: '꽃밭',    bg: '#F48FB1', accent: '#C2185B',
-    sprites: [
-      { src: NATURE.flower_red,    w: 18, h: 34 },
-      { src: NATURE.flower_purple, w: 18, h: 34 },
-      { src: NATURE.flower_yellow, w: 18, h: 34 },
-    ],
-  },
-  ocean: {
-    label: '바다',    bg: '#81D4FA', accent: '#0277BD',
-    sprites: [
-      { src: NATURE.tree_palm,   w: 44, h: 68 },
-      { src: NATURE.grass_leafs, w: 26, h: 18 },
-    ],
-  },
-  sky: {
-    label: '하늘',    bg: '#CE93D8', accent: '#7B1FA2',
-    sprites: [
-      { src: NATURE.tree_pine,       w: 30, h: 56 },
-      { src: NATURE.tree_pine_small, w: 20, h: 40 },
-    ],
-  },
-};
-
-function formatDate(dateStr: string) {
-  const [, m, d] = dateStr.split('-');
-  return `${Number(m)}/${Number(d)}`;
+function getCellDisplay(cell: GardenCell | null): string {
+  if (!cell) return '';
+  if (cell.type === 'plant') {
+    const stage = getPlantStage(cell.plantedAt);
+    if (stage === 0) return '🌱';
+    if (stage === 1) return '🌿';
+    return SHOP_ITEMS.find(i => i.id === cell.itemId)?.emoji ?? '🌿';
+  }
+  return SHOP_ITEMS.find(i => i.id === cell.itemId)?.emoji ?? '?';
 }
 
 export default function GardenScreen() {
+  const { width: screenW } = useWindowDimensions();
+  const CELL_SIZE = Math.floor((screenW - 16 * 2 - 12 * 2 - 4 * 3) / 4);
   const insets = useSafeAreaInsets();
   const { sessions, state } = useProgressStore();
-  const { config } = useConfigStore();
+  const { garden, load, placeCell, removeCell } = useGardenStore();
 
-  const allSeeds = sessions.reduce(
+  const [shopVisible, setShopVisible] = useState(false);
+  const [shopTab, setShopTab] = useState<ShopCategory>('plant');
+  const [selected, setSelected] = useState<ShopItem | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<{ zone: MapId; idx: number } | null>(null);
+  const [, setTick] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); load(); }, []);
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const earned = sessions.reduce(
     (acc, s) => ({
-      normal: acc.normal + s.seeds.normal,
-      rare: acc.rare + s.seeds.rare,
+      normal:  acc.normal  + s.seeds.normal,
+      rare:    acc.rare    + s.seeds.rare,
       special: acc.special + s.seeds.special,
     }),
     { normal: 0, rare: 0, special: 0 }
   );
-  const totalSeeds = allSeeds.normal + allSeeds.rare + allSeeds.special;
-  const stage = getStage(totalSeeds);
-  const nextStage = CHAR_STAGES.find(s => s.minSeeds > totalSeeds);
+  const spent = garden.spentSeeds;
+  const avail = {
+    normal:  earned.normal  - spent.normal,
+    rare:    earned.rare    - spent.rare,
+    special: earned.special - spent.special,
+  };
+
   const completedMaps: MapId[] = state.completedMaps ?? [];
-  const recent = [...sessions].reverse().slice(0, 5);
+
+  function isZoneOpen(id: MapId) {
+    if (id === 'forest') return true;
+    const i = MAP_ORDER.indexOf(id);
+    return completedMaps.includes(MAP_ORDER[i - 1]);
+  }
+
+  function handleCellPress(zone: MapId, idx: number) {
+    const cells = garden.zones[zone] ?? [];
+    const cell = cells[idx] ?? null;
+
+    if (cell) {
+      setRemoveTarget({ zone, idx });
+      return;
+    }
+    if (!selected) return;
+
+    if (selected.category === 'animal') {
+      const count = cells.filter(c => c?.type === 'animal').length;
+      if (count >= ANIMAL_MAX) return;
+    }
+
+    const newCell: GardenCell = {
+      type: selected.category as GardenCell['type'],
+      itemId: selected.id,
+      plantedAt: selected.category === 'plant' ? Date.now() : undefined,
+    };
+    const ok = placeCell(zone, idx, newCell, selected.cost, earned);
+    if (ok) setSelected(null);
+  }
+
+  function handleSelectItem(item: ShopItem) {
+    if (avail[item.cost.type] < item.cost.amount) return;
+    if (item.unlockZone && !isZoneOpen(item.unlockZone)) return;
+    setSelected(item);
+    setShopVisible(false);
+  }
+
+  const shopCategories: { key: ShopCategory; label: string }[] = [
+    { key: 'plant',  label: '식물' },
+    { key: 'animal', label: '동물' },
+    { key: 'deco',   label: '장식' },
+  ];
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
+
+      {/* 씨앗 잔액 + 상점 버튼 */}
+      <View style={styles.topBar}>
+        <View style={styles.seedRow}>
+          <Text style={styles.seedChip}>🌱 {avail.normal}</Text>
+          <Text style={styles.seedChip}>🌺 {avail.rare}</Text>
+          <Text style={styles.seedChip}>✨ {avail.special}</Text>
+        </View>
+        <Pressable style={styles.shopBtn} onPress={() => setShopVisible(true)}>
+          <Text style={styles.shopBtnText}>🛒 상점</Text>
+        </Pressable>
+      </View>
+
+      {/* 배치 모드 바 */}
+      {selected && (
+        <View style={styles.placeBar}>
+          <Text style={styles.placeBarText}>
+            {selected.emoji} {selected.name} — 심을 칸을 탭하세요
+          </Text>
+          <Pressable onPress={() => setSelected(null)}>
+            <Text style={styles.cancelText}>취소</Text>
+          </Pressable>
+        </View>
+      )}
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {MAP_ORDER.map((mapId) => {
+          const zc = ZONE_CONFIG[mapId];
+          const open = isZoneOpen(mapId);
+          const isDone = completedMaps.includes(mapId);
+          const isCurrent = state.currentMap === mapId;
 
-        {/* 헤더 */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>내 정원</Text>
-          <Text style={styles.headerSub}>씨앗을 모아 정원을 키워봐요</Text>
-        </View>
-
-        {/* 캐릭터 + 단계 카드 */}
-        <View style={styles.charCard}>
-          <Image source={CHAR_IMAGES[stage.imgIdx]} style={styles.charImg} resizeMode="cover" />
-          <View style={styles.charRight}>
-            <Text style={styles.charStageLabel}>{stage.label}</Text>
-            <Text style={styles.charSeedCount}>씨앗 총 {totalSeeds}개</Text>
-            {nextStage ? (
-              <>
-                <View style={styles.charTrack}>
-                  <View
-                    style={[
-                      styles.charFill,
-                      {
-                        width: `${Math.round(
-                          ((totalSeeds - stage.minSeeds) /
-                            (nextStage.minSeeds - stage.minSeeds)) * 100
-                        )}%`,
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.charNextLabel}>
-                  다음 단계까지 {nextStage.minSeeds - totalSeeds}개
-                </Text>
-              </>
-            ) : (
-              <View style={styles.masteredRow}>
-                <Image source={ICONS.trophy} style={[styles.trophyIcon, { tintColor: '#FF9800' }]} />
-                <Text style={styles.charMaxed}>최고 단계 달성!</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* 맵 여정 */}
-        <Text style={styles.sectionTitle}>나의 여정</Text>
-        <View style={styles.journeyList}>
-          {MAP_ORDER.map((mapId) => {
-            const zone = MAP_ZONES[mapId];
-            const isDone = completedMaps.includes(mapId);
-            const isCurrent = state.currentMap === mapId;
-            const isLocked = !isDone && !isCurrent;
-            const progress = isCurrent
-              ? Math.round((state.sessionsCompleted / config.sessionsPerMap) * 100)
-              : isDone ? 100 : 0;
-
+          if (!open) {
             return (
-              <View key={mapId} style={[styles.zoneCard, isLocked && styles.zoneLocked]}>
-                {/* 컬러 사이드바 + 스프라이트 */}
-                <View style={[styles.zoneSidebar, { backgroundColor: isLocked ? '#E0E0E0' : zone.bg }]}>
-                  {isLocked ? (
-                    <Image
-                      source={ICONS.locked}
-                      style={[styles.lockedIcon, { tintColor: '#BDBDBD' }]}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <View style={styles.spritesRow}>
-                      {zone.sprites.map((sp, i) => (
-                        <Image
-                          key={i}
-                          source={sp.src}
-                          style={{ width: sp.w, height: sp.h }}
-                          resizeMode="contain"
-                        />
-                      ))}
-                    </View>
-                  )}
-                </View>
-
-                {/* 내용 */}
-                <View style={styles.zoneContent}>
-                  <View style={styles.zoneTop}>
-                    <Text style={[styles.zoneLabel, isLocked && styles.zoneLabelLocked]}>
-                      {zone.label}
-                    </Text>
-                    {isDone && (
-                      <View style={[styles.zoneBadge, { backgroundColor: zone.accent }]}>
-                        <Image source={ICONS.star} style={[styles.badgeIcon, { tintColor: '#FFF' }]} />
-                        <Text style={styles.zoneBadgeText}>완성</Text>
-                      </View>
-                    )}
-                    {isCurrent && (
-                      <View style={[styles.zoneBadge, { backgroundColor: '#FF9800' }]}>
-                        <Text style={styles.zoneBadgeText}>진행 중</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {!isLocked ? (
-                    <>
-                      <View style={styles.zoneProgressTrack}>
-                        <View
-                          style={[
-                            styles.zoneProgressFill,
-                            { width: `${progress}%`, backgroundColor: zone.accent },
-                          ]}
-                        />
-                      </View>
-                      <Text style={[styles.zoneProgressLabel, { color: zone.accent }]}>
-                        {isCurrent
-                          ? `${state.sessionsCompleted} / ${config.sessionsPerMap} 세션`
-                          : '완성!'}
-                      </Text>
-                    </>
-                  ) : (
-                    <Text style={styles.zoneLockMsg}>이전 맵을 완성하면 열려요</Text>
-                  )}
-                </View>
+              <View key={mapId} style={styles.lockedCard}>
+                <Text style={styles.lockedEmoji}>🔒</Text>
+                <Text style={styles.lockedText}>{zc.label} — 이전 맵을 완성하면 열려요</Text>
               </View>
             );
-          })}
-        </View>
+          }
 
-        {/* 씨앗 인벤토리 */}
-        <Text style={styles.sectionTitle}>씨앗 인벤토리</Text>
-        <View style={styles.seedInventory}>
-          <SeedSlot
-            sprite={NATURE.sprout_a}
-            count={allSeeds.normal}
-            label="세션 완료"
-            color="#4CAF50"
-            bg="#E8F5E9"
-          />
-          <SeedSlot
-            sprite={NATURE.flower_red}
-            count={allSeeds.rare}
-            label="콤보 10+"
-            color="#E91E63"
-            bg="#FCE4EC"
-          />
-          <SeedSlot
-            sprite={ICONS.star}
-            count={allSeeds.special}
-            label="100% 정답"
-            color="#FF9800"
-            bg="#FFF3E0"
-            tintColor="#FF9800"
-          />
-        </View>
+          const cells: (GardenCell | null)[] = garden.zones[mapId] ?? Array(16).fill(null);
+          const animalCount = cells.filter(c => c?.type === 'animal').length;
 
-        {/* 최근 기록 */}
-        {recent.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>최근 기록</Text>
-            <View style={styles.recentList}>
-              {recent.map((s, i) => {
-                const day = s.seeds.normal + s.seeds.rare + s.seeds.special;
-                return (
-                  <View
-                    key={i}
-                    style={[styles.recentRow, i === recent.length - 1 && styles.recentRowLast]}
-                  >
-                    <Text style={styles.recentDate}>{formatDate(s.date)}</Text>
-                    <View style={styles.recentSeeds}>
-                      {s.seeds.normal > 0 && <Text style={styles.seedChip}>🌱×{s.seeds.normal}</Text>}
-                      {s.seeds.rare > 0 && <Text style={styles.seedChip}>🌺×{s.seeds.rare}</Text>}
-                      {s.seeds.special > 0 && <Text style={styles.seedChip}>✨×{s.seeds.special}</Text>}
+          return (
+            <View key={mapId} style={[styles.zoneCard, { backgroundColor: zc.bg }]}>
+              <View style={styles.zoneHeader}>
+                <Text style={[styles.zoneTitle, { color: zc.accent }]}>{zc.label}</Text>
+                <View style={styles.zoneBadges}>
+                  {isDone && (
+                    <View style={[styles.badge, { backgroundColor: zc.accent }]}>
+                      <Text style={styles.badgeText}>완성 ⭐</Text>
                     </View>
-                    <Text style={styles.recentCombo}>
-                      {s.maxCombo > 0 ? `🔥${s.maxCombo}` : ''}
+                  )}
+                  {isCurrent && !isDone && (
+                    <View style={[styles.badge, { backgroundColor: '#FF9800' }]}>
+                      <Text style={styles.badgeText}>진행중</Text>
+                    </View>
+                  )}
+                  {animalCount > 0 && (
+                    <Text style={[styles.animalCount, { color: zc.accent }]}>
+                      동물 {animalCount}/{ANIMAL_MAX}
                     </Text>
-                    <Text style={styles.recentTotal}>{day}개</Text>
-                  </View>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.grid}>
+                {cells.map((cell, idx) => {
+                  const isEmpty = !cell;
+                  const isAnimalFull = selected?.category === 'animal' && animalCount >= ANIMAL_MAX;
+                  const canPlace = !!selected && isEmpty && !isAnimalFull;
+                  const display = getCellDisplay(cell);
+
+                  return (
+                    <Pressable
+                      key={idx}
+                      style={[
+                        styles.cell,
+                        { width: CELL_SIZE, height: CELL_SIZE, backgroundColor: zc.ground },
+                        canPlace && styles.cellHighlight,
+                      ]}
+                      onPress={() => handleCellPress(mapId, idx)}
+                    >
+                      {display ? (
+                        <Text style={[
+                          styles.cellEmoji,
+                          cell?.type === 'animal' && styles.cellEmojiAnimal,
+                        ]}>
+                          {display}
+                        </Text>
+                      ) : canPlace ? (
+                        <Text style={styles.cellPlus}>+</Text>
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        })}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      {/* 상점 오버레이 */}
+      {mounted && shopVisible && (
+        <View style={StyleSheet.absoluteFill}>
+          <Pressable style={styles.overlayBg} onPress={() => setShopVisible(false)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>🛒 상점</Text>
+              <Pressable onPress={() => setShopVisible(false)}>
+                <Text style={styles.closeBtn}>✕</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.tabRow}>
+              {shopCategories.map(({ key, label }) => (
+                <Pressable
+                  key={key}
+                  style={[styles.tab, shopTab === key && styles.tabActive]}
+                  onPress={() => setShopTab(key)}
+                >
+                  <Text style={[styles.tabText, shopTab === key && styles.tabTextActive]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <ScrollView style={styles.itemList}>
+              {SHOP_ITEMS.filter(i => i.category === shopTab).map(item => {
+                const canAfford = avail[item.cost.type] >= item.cost.amount;
+                const locked = item.unlockZone ? !isZoneOpen(item.unlockZone) : false;
+                const disabled = !canAfford || locked;
+
+                return (
+                  <Pressable
+                    key={item.id}
+                    style={[styles.itemRow, disabled && styles.itemRowOff]}
+                    onPress={() => handleSelectItem(item)}
+                  >
+                    <Text style={styles.itemEmoji}>{item.emoji}</Text>
+                    <View style={styles.itemInfo}>
+                      <Text style={[styles.itemName, disabled && styles.itemNameOff]}>
+                        {item.name}
+                      </Text>
+                      {locked && item.unlockZone && (
+                        <Text style={styles.itemLock}>
+                          🔒 {ZONE_CONFIG[item.unlockZone].label} 해제 필요
+                        </Text>
+                      )}
+                      {item.category === 'plant' && !locked && (
+                        <Text style={styles.itemHint}>심으면 시간이 지나며 자라요</Text>
+                      )}
+                      {item.category === 'animal' && !locked && (
+                        <Text style={styles.itemHint}>구역당 최대 {ANIMAL_MAX}마리</Text>
+                      )}
+                    </View>
+                    <View style={[styles.costBadge, !canAfford && styles.costBadgeOff]}>
+                      <Text style={[styles.costText, !canAfford && styles.costTextOff]}>
+                        {SEED_ICON[item.cost.type]} {item.cost.amount}
+                      </Text>
+                    </View>
+                  </Pressable>
                 );
               })}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* 제거 확인 오버레이 */}
+      {mounted && !!removeTarget && (
+        <Pressable style={[StyleSheet.absoluteFill, styles.overlayBg]} onPress={() => setRemoveTarget(null)}>
+          <View style={styles.removeSheet}>
+            <Text style={styles.removeEmoji}>
+              {getCellDisplay(garden.zones[removeTarget.zone]?.[removeTarget.idx] ?? null)}
+            </Text>
+            <Text style={styles.removeTitle}>제거할까요?</Text>
+            <Text style={styles.removeHint}>씨앗은 돌아오지 않아요</Text>
+            <View style={styles.removeRow}>
+              <Pressable
+                style={[styles.removeBtn, styles.removeBtnNo]}
+                onPress={() => setRemoveTarget(null)}
+              >
+                <Text style={styles.removeBtnNoText}>취소</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.removeBtn, styles.removeBtnYes]}
+                onPress={() => { removeCell(removeTarget.zone, removeTarget.idx); setRemoveTarget(null); }}
+              >
+                <Text style={styles.removeBtnYesText}>제거</Text>
+              </Pressable>
             </View>
-          </>
-        )}
-
-        <View style={{ height: 20 }} />
-      </ScrollView>
-    </View>
-  );
-}
-
-function SeedSlot({
-  sprite, count, label, color, bg, tintColor,
-}: {
-  sprite: ImageSourcePropType;
-  count: number; label: string; color: string; bg: string;
-  tintColor?: string;
-}) {
-  return (
-    <View style={[styles.seedSlot, { backgroundColor: bg }]}>
-      <Image
-        source={sprite}
-        style={[styles.seedSlotSprite, tintColor ? { tintColor } : undefined]}
-        resizeMode="contain"
-      />
-      <Text style={[styles.seedSlotCount, { color }]}>{count}</Text>
-      <Text style={styles.seedSlotLabel}>{label}</Text>
+          </View>
+        </Pressable>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F9FBE7' },
-  scroll: { paddingHorizontal: 16, paddingTop: 8 },
-  header: { marginBottom: 16, gap: 2 },
-  headerTitle: { fontSize: 24, fontFamily: 'Pretendard-Bold', color: '#2E3A23' },
-  headerSub: { fontSize: 13, fontFamily: 'Pretendard-Regular', color: '#6A7B5A' },
+  screen: { flex: 1, backgroundColor: '#F1F8E9' },
 
-  charCard: {
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 10,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    flexDirection: 'row',
-    overflow: 'hidden',
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
+    borderBottomWidth: 1, borderBottomColor: '#E8F5E9',
   },
-  charImg: { width: 110, height: 110 },
-  charRight: { flex: 1, padding: 14, justifyContent: 'center', gap: 4 },
-  charStageLabel: { fontSize: 17, fontFamily: 'Pretendard-Bold', color: '#2E3A23' },
-  charSeedCount: { fontSize: 12, fontFamily: 'Pretendard-Regular', color: '#6A7B5A' },
-  charTrack: {
-    height: 6, backgroundColor: '#EEF2E6', borderRadius: 3, overflow: 'hidden', marginTop: 4,
+  seedRow: { flexDirection: 'row', gap: 10 },
+  seedChip: { fontSize: 15, fontFamily: 'Pretendard-SemiBold', color: '#2E3A23' },
+  shopBtn: {
+    backgroundColor: '#4CAF50', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 6,
   },
-  charFill: { height: '100%', backgroundColor: '#4CAF50', borderRadius: 3 },
-  charNextLabel: { fontSize: 11, fontFamily: 'Pretendard-Regular', color: '#6A7B5A', marginTop: 2 },
-  masteredRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  trophyIcon: { width: 16, height: 16 },
-  charMaxed: { fontSize: 13, fontFamily: 'Pretendard-SemiBold', color: '#FF9800' },
+  shopBtnText: { fontSize: 14, fontFamily: 'Pretendard-Bold', color: '#FFF' },
 
-  sectionTitle: {
-    fontSize: 15, fontFamily: 'Pretendard-SemiBold', color: '#2E3A23', marginBottom: 10,
+  placeBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: '#FFF9C4',
+    borderBottomWidth: 1, borderBottomColor: '#F9A825',
   },
+  placeBarText: { fontSize: 14, fontFamily: 'Pretendard-Medium', color: '#5D4037', flex: 1 },
+  cancelText: { fontSize: 14, fontFamily: 'Pretendard-SemiBold', color: '#E53935' },
 
-  journeyList: { gap: 10, marginBottom: 20 },
+  scroll: { paddingHorizontal: 16, paddingTop: 12, gap: 12 },
+
+  lockedCard: {
+    backgroundColor: '#EEEEEE', borderRadius: 20,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    padding: 16,
+  },
+  lockedEmoji: { fontSize: 24 },
+  lockedText: { fontSize: 14, fontFamily: 'Pretendard-Regular', color: '#9E9E9E' },
+
   zoneCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    flexDirection: 'row',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    elevation: 3,
+    borderRadius: 20, padding: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
-  zoneLocked: { opacity: 0.55 },
-  zoneSidebar: {
-    width: 86,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 10,
-    paddingTop: 10,
-    minHeight: 88,
+  zoneHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  lockedIcon: { width: 32, height: 32 },
-  spritesRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 2,
-    paddingHorizontal: 4,
-  },
-  zoneContent: { flex: 1, padding: 14, justifyContent: 'center', gap: 6 },
-  zoneTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  zoneLabel: { fontSize: 16, fontFamily: 'Pretendard-Bold', color: '#2E3A23', flex: 1 },
-  zoneLabelLocked: { color: '#9E9E9E' },
-  zoneBadge: {
-    borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3,
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-  },
-  badgeIcon: { width: 10, height: 10 },
-  zoneBadgeText: { fontSize: 11, fontFamily: 'Pretendard-SemiBold', color: '#FFFFFF' },
-  zoneProgressTrack: {
-    height: 8, backgroundColor: '#EEF2E6', borderRadius: 4, overflow: 'hidden',
-  },
-  zoneProgressFill: { height: '100%', borderRadius: 4 },
-  zoneProgressLabel: { fontSize: 12, fontFamily: 'Pretendard-Medium' },
-  zoneLockMsg: { fontSize: 12, fontFamily: 'Pretendard-Regular', color: '#9E9E9E' },
+  zoneTitle: { fontSize: 16, fontFamily: 'Pretendard-Bold' },
+  zoneBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  badge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText: { fontSize: 11, fontFamily: 'Pretendard-SemiBold', color: '#FFF' },
+  animalCount: { fontSize: 11, fontFamily: 'Pretendard-Medium' },
 
-  seedInventory: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  seedSlot: {
-    flex: 1, borderRadius: 16, padding: 12, alignItems: 'center', gap: 6,
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  cell: {
+    borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
   },
-  seedSlotSprite: { width: 40, height: 40 },
-  seedSlotCount: { fontSize: 22, fontFamily: 'Pretendard-Bold', fontVariant: ['tabular-nums'] },
-  seedSlotLabel: { fontSize: 11, fontFamily: 'Pretendard-Regular', color: '#6A7B5A', textAlign: 'center' },
+  cellHighlight: {
+    borderWidth: 2, borderColor: '#FFD54F', borderStyle: 'dashed',
+    backgroundColor: 'rgba(255,213,79,0.3)',
+  },
+  cellEmoji: { fontSize: 28 },
+  cellEmojiAnimal: { fontSize: 32 },
+  cellPlus: { fontSize: 22, color: 'rgba(255,255,255,0.6)', fontFamily: 'Pretendard-Bold' },
 
-  recentList: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+  overlayBg: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+
+  sheet: {
+    backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    maxHeight: '80%', paddingBottom: 24,
   },
-  recentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F8EE',
-    gap: 6,
+  sheetHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 20, borderBottomWidth: 1, borderBottomColor: '#F5F5F5',
   },
-  recentRowLast: { borderBottomWidth: 0 },
-  recentDate: {
-    fontSize: 13, fontFamily: 'Pretendard-Medium', color: '#6A7B5A',
-    width: 36, fontVariant: ['tabular-nums'],
+  sheetTitle: { fontSize: 18, fontFamily: 'Pretendard-Bold', color: '#2E3A23' },
+  closeBtn: { fontSize: 18, color: '#9E9E9E', padding: 4 },
+
+  tabRow: {
+    flexDirection: 'row', paddingHorizontal: 16, gap: 8, paddingVertical: 12,
   },
-  recentSeeds: { flex: 1, flexDirection: 'row', gap: 5, flexWrap: 'wrap' },
-  seedChip: { fontSize: 12, fontFamily: 'Pretendard-Regular', color: '#2E3A23' },
-  recentCombo: { fontSize: 12, fontFamily: 'Pretendard-Medium', color: '#FF7043', minWidth: 36 },
-  recentTotal: {
-    fontSize: 13, fontFamily: 'Pretendard-SemiBold', color: '#2E3A23',
-    minWidth: 28, textAlign: 'right', fontVariant: ['tabular-nums'],
+  tab: {
+    flex: 1, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: '#F5F5F5', alignItems: 'center',
   },
+  tabActive: { backgroundColor: '#4CAF50' },
+  tabText: { fontSize: 14, fontFamily: 'Pretendard-SemiBold', color: '#9E9E9E' },
+  tabTextActive: { color: '#FFF' },
+
+  itemList: { paddingHorizontal: 16 },
+  itemRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F5F5F5',
+  },
+  itemRowOff: { opacity: 0.4 },
+  itemEmoji: { fontSize: 32, width: 40, textAlign: 'center' },
+  itemInfo: { flex: 1 },
+  itemName: { fontSize: 15, fontFamily: 'Pretendard-SemiBold', color: '#2E3A23' },
+  itemNameOff: { color: '#9E9E9E' },
+  itemLock: { fontSize: 11, fontFamily: 'Pretendard-Regular', color: '#EF5350', marginTop: 2 },
+  itemHint: { fontSize: 11, fontFamily: 'Pretendard-Regular', color: '#9E9E9E', marginTop: 2 },
+  costBadge: {
+    backgroundColor: '#E8F5E9', borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  costBadgeOff: { backgroundColor: '#F5F5F5' },
+  costText: { fontSize: 13, fontFamily: 'Pretendard-Bold', color: '#388E3C' },
+  costTextOff: { color: '#BDBDBD' },
+
+  removeSheet: {
+    backgroundColor: '#FFF', borderRadius: 24,
+    margin: 32, padding: 28, alignItems: 'center', gap: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15, shadowRadius: 24, elevation: 8,
+  },
+  removeEmoji: { fontSize: 48, marginBottom: 4 },
+  removeTitle: { fontSize: 18, fontFamily: 'Pretendard-Bold', color: '#2E3A23' },
+  removeHint: { fontSize: 13, fontFamily: 'Pretendard-Regular', color: '#9E9E9E', marginBottom: 8 },
+  removeRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  removeBtn: { flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center' },
+  removeBtnNo: { backgroundColor: '#F5F5F5' },
+  removeBtnYes: { backgroundColor: '#EF5350' },
+  removeBtnNoText: { fontSize: 15, fontFamily: 'Pretendard-SemiBold', color: '#757575' },
+  removeBtnYesText: { fontSize: 15, fontFamily: 'Pretendard-Bold', color: '#FFF' },
 });

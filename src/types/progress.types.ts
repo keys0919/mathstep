@@ -56,9 +56,26 @@ export interface SessionRecord {
   logs: ProblemLog[];
 }
 
+export type AnimalId = 'cat' | 'dog' | 'rabbit' | 'frog' | 'penguin' | 'duck' | 'fox' | 'bear';
+export type PlantId = 'bush' | 'flower_r' | 'flower_p' | 'flower_y' | 'tree_oak' | 'tree_palm' | 'tree_pine';
+export type DecoId = 'mushroom' | 'stone' | 'fence';
+
+export interface GardenCell {
+  type: 'plant' | 'animal' | 'deco';
+  itemId: string;
+  plantedAt?: number; // ms timestamp, plants only
+}
+
+export interface GardenData {
+  zones: Record<MapId, (GardenCell | null)[]>; // 16 cells per zone (4×4)
+  spentSeeds: { normal: number; rare: number; special: number };
+  lastVisit: string | null;
+}
+
 export interface AppData {
   config: Config;
   state: AppState;
   multTable: MultTableData;
   sessions: SessionRecord[];
+  garden: GardenData;
 }
