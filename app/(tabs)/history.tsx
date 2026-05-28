@@ -1,7 +1,7 @@
 import { View, Text, Pressable, StyleSheet, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../../src/stores/progress.store';
-import { loadData, todayStr } from '../../src/utils/storage';
+import { loadData, saveData, todayStr } from '../../src/utils/storage';
 
 function formatDate(dateStr: string): string {
   const [, m, d] = dateStr.split('-');
@@ -21,6 +21,34 @@ function exportJson() {
   URL.revokeObjectURL(url);
 }
 
+function importJson() {
+  if (Platform.OS !== 'web') return;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        if (!data.sessions || !data.state) {
+          alert('올바른 백업 파일이 아닙니다.');
+          return;
+        }
+        saveData(data);
+        alert('가져오기 완료. 앱을 새로고침합니다.');
+        window.location.reload();
+      } catch {
+        alert('파일을 읽을 수 없습니다.');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const { sessions } = useProgressStore();
@@ -34,9 +62,14 @@ export default function HistoryScreen() {
         {/* 헤더 */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>학습 기록</Text>
-          <Pressable onPress={exportJson} style={styles.exportBtn}>
-            <Text style={styles.exportText}>JSON 내보내기</Text>
-          </Pressable>
+          <View style={styles.headerBtns}>
+            <Pressable onPress={importJson} style={styles.exportBtn}>
+              <Text style={styles.exportText}>가져오기</Text>
+            </Pressable>
+            <Pressable onPress={exportJson} style={styles.exportBtn}>
+              <Text style={styles.exportText}>내보내기</Text>
+            </Pressable>
+          </View>
         </View>
 
         {recent.length === 0 ? (
@@ -139,6 +172,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   headerTitle: { fontSize: 24, fontFamily: 'Pretendard-Bold', color: '#2E3A23' },
+  headerBtns: { flexDirection: 'row', gap: 8 },
   exportBtn: {
     paddingVertical: 6,
     paddingHorizontal: 12,
