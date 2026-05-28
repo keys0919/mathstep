@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions,
+  View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions, Image, ImageSourcePropType,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../../src/stores/progress.store';
 import { useGardenStore } from '../../src/stores/garden.store';
 import { MapId, GardenCell } from '../../src/types/progress.types';
 import { SHOP_ITEMS, ShopItem, SEED_ICON, ShopCategory } from '../../src/data/garden.data';
+
+const SEED_IMG = {
+  normal:  require('../../assets/nature/sprout_a.png') as ImageSourcePropType,
+  rare:    require('../../assets/nature/flower_red.png') as ImageSourcePropType,
+  special: require('../../assets/icons/star.png') as ImageSourcePropType,
+};
 
 const MAP_ORDER: MapId[] = ['forest', 'flower', 'ocean', 'sky'];
 const ANIMAL_MAX = 2;
@@ -124,9 +130,9 @@ export default function GardenScreen() {
       {/* 씨앗 잔액 + 상점 버튼 */}
       <View style={styles.topBar}>
         <View style={styles.seedRow}>
-          <Text style={styles.seedChip}>🌱 {avail.normal}</Text>
-          <Text style={styles.seedChip}>🌺 {avail.rare}</Text>
-          <Text style={styles.seedChip}>✨ {avail.special}</Text>
+          <SeedChip img={SEED_IMG.normal}  count={avail.normal}  bg="#E8F5E9" tint="#4CAF50" />
+          <SeedChip img={SEED_IMG.rare}    count={avail.rare}    bg="#FCE4EC" tint="#E91E63" />
+          <SeedChip img={SEED_IMG.special} count={avail.special} bg="#FFF3E0" tint="#FF9800" />
         </View>
         <Pressable style={styles.shopBtn} onPress={() => setShopVisible(true)}>
           <Text style={styles.shopBtnText}>🛒 상점</Text>
@@ -446,3 +452,15 @@ const styles = StyleSheet.create({
   removeBtnNoText: { fontSize: 15, fontFamily: 'Pretendard-SemiBold', color: '#757575' },
   removeBtnYesText: { fontSize: 15, fontFamily: 'Pretendard-Bold', color: '#FFF' },
 });
+
+function SeedChip({ img, count, bg, tint }: {
+  img: ImageSourcePropType; count: number; bg: string; tint: string;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4,
+      backgroundColor: bg, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 }}>
+      <Image source={img} style={{ width: 16, height: 16, tintColor: tint }} resizeMode="contain" />
+      <Text style={{ fontSize: 13, fontFamily: 'Pretendard-SemiBold', color: tint }}>{count}</Text>
+    </View>
+  );
+}

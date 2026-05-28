@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   },
   trophyIcon: { width: 16, height: 16 },
 
-  spacer: { flex: 1, maxHeight: 40 },
+  spacer: { flex: 1, minHeight: 16 },
 
   // 시작 버튼
   startBtn: {
