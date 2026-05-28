@@ -239,6 +239,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     aspectRatio: 1,
     alignSelf: 'center',
+    backgroundColor: '#000000',
   },
   charImg: {
     width: '100%',
