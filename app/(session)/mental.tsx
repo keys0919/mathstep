@@ -78,6 +78,7 @@ export default function MentalScreen() {
   );
   const [isWrong, setIsWrong] = useState(false);
   const hadWrongRef = useRef(false);
+  const handlingRef = useRef(false); // 중복 탭 방지
   const [pendingCarryCheck, setPendingCarryCheck] = useState(false);
   const pendingNextBoxRef = useRef(0);
 
@@ -119,7 +120,8 @@ export default function MentalScreen() {
   // Level 0: 전체 답 선택
   const handleLevel0Choice = useCallback(
     (choice: number) => {
-      if (status !== 'answering') return;
+      if (status !== 'answering' || handlingRef.current) return;
+      handlingRef.current = true;
       const correct = choice === problem.answer;
       setSelected(choice);
       setStatus(correct ? 'correct' : 'wrong');
@@ -131,7 +133,10 @@ export default function MentalScreen() {
       } else {
         resetCombo();
       }
-      setTimeout(() => advanceProblem(idx + 1), correct ? 700 : 1200);
+      setTimeout(() => {
+        handlingRef.current = false;
+        advanceProblem(idx + 1);
+      }, correct ? 700 : 1200);
     },
     [status, idx, problem, advanceProblem, config]
   );
@@ -139,7 +144,8 @@ export default function MentalScreen() {
   // Level 1: 자릿수별 입력 (오른쪽→왼쪽)
   const handleLevel1Choice = useCallback(
     (choice: number) => {
-      if (isWrong) return;
+      if (isWrong || handlingRef.current) return;
+      handlingRef.current = true;
       const fillIdx = activationOrder[boxIdx];
       const correct = choice === answerDigits[fillIdx];
 
@@ -155,24 +161,29 @@ export default function MentalScreen() {
           addMentalResult(problemCorrect);
           addLog({ type: 'mental', problem: `${problem.a}${problem.op}${problem.b}`, correct: problemCorrect });
           setFills(newFills);
-          setTimeout(() => advanceProblem(idx + 1), 500);
+          setTimeout(() => {
+            handlingRef.current = false;
+            advanceProblem(idx + 1);
+          }, 500);
         } else if (problemCarries[0] !== null) {
-          // 올림/빌림이 있으면 carry 입력 단계
           pendingNextBoxRef.current = next;
           setFills(newFills);
           setPendingCarryCheck(true);
+          handlingRef.current = false;
         } else {
           setBoxIdx(next);
           setFills(newFills);
+          handlingRef.current = false;
         }
       } else {
-        setIsWrong(true);
         hadWrongRef.current = true;
         resetCombo();
+        setIsWrong(true);
         setTimeout(() => {
           const newFills = [...fills];
           newFills[fillIdx] = { value: answerDigits[fillIdx], status: 'revealed' };
           setIsWrong(false);
+          handlingRef.current = false;
           const next = boxIdx + 1;
           if (next >= answerDigits.length) {
             addMentalResult(false);

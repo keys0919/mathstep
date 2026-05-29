@@ -36,6 +36,7 @@ export default function MultTableScreen() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<TextInput>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const handlingRef = useRef(false); // 중복 탭 방지
 
   const problem = problems[idx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
@@ -91,6 +92,7 @@ export default function MultTableScreen() {
         setStatus('answering');
         setSelected(null);
         setInput('');
+        handlingRef.current = false; // 재도전 입력 허용
         timerRef.current = setInterval(() => {
           setElapsed(Math.floor((Date.now() - startTimeRef.current) / 100) / 10);
         }, 100);
@@ -102,6 +104,7 @@ export default function MultTableScreen() {
     // 다음 문제로
     setRetrying(false);
     setTimeout(() => {
+      handlingRef.current = false; // 다음 문제 입력 허용
       const next = idx + 1;
       if (next >= problems.length) {
         router.push('/(session)/mental');
@@ -113,7 +116,8 @@ export default function MultTableScreen() {
 
   // Level 0: 객관식
   const handleLevel0Choice = useCallback((choice: number) => {
-    if (status !== 'answering') return;
+    if (status !== 'answering' || handlingRef.current) return;
+    handlingRef.current = true;
     const timeSec = (Date.now() - startTimeRef.current) / 1000;
     if (timerRef.current) clearInterval(timerRef.current);
     const correct = choice === problem.answer;
@@ -124,7 +128,8 @@ export default function MultTableScreen() {
 
   // Level 1: 타이핑
   const handleSubmit = useCallback(() => {
-    if (status !== 'answering') return;
+    if (status !== 'answering' || handlingRef.current) return;
+    handlingRef.current = true;
     const num = parseInt(input.trim(), 10);
     if (isNaN(num)) return;
 

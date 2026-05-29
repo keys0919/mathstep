@@ -42,6 +42,7 @@ export default function MultiplyScreen() {
   );
   const [isWrong, setIsWrong] = useState(false);
   const hadErrorRef = useRef(false);
+  const handlingRef = useRef(false); // 중복 탭 방지
   // 합산 단계 올림 수 입력 상태
   const [pendingCarryCheck, setPendingCarryCheck] = useState(false);
   const pendingNextStepRef = useRef(0);
@@ -115,12 +116,15 @@ export default function MultiplyScreen() {
 
   const handleCarryChoice = useCallback(
     (choice: number) => {
+      if (handlingRef.current) return;
+      handlingRef.current = true;
       const carryIdx = pendingCarryIdxRef.current;
       const correct = choice === problem.sumCarries[carryIdx];
       const newCarryFills = [...carryFills];
       newCarryFills[carryIdx] = correct ? choice : problem.sumCarries[carryIdx];
       setCarryFills(newCarryFills);
       setPendingCarryCheck(false);
+      handlingRef.current = false;
       advanceTo(pendingNextStepRef.current, fills);
     },
     [carryFills, fills, problem, advanceTo]
@@ -128,7 +132,8 @@ export default function MultiplyScreen() {
 
   const handleChoice = useCallback(
     (choice: number) => {
-      if (isWrong || pendingCarryCheck) return;
+      if (isWrong || pendingCarryCheck || handlingRef.current) return;
+      handlingRef.current = true;
       const gIdx = ACTIVATION_ORDER[boxIdx];
       const box = problem.boxes[gIdx];
       const correct = choice === box.answer;
@@ -139,15 +144,19 @@ export default function MultiplyScreen() {
         newFills[gIdx] = { value: choice, status: 'correct' };
         addSeed('normal');
         incrementCombo(config.comboThreshold1, config.comboThreshold2);
-        setTimeout(() => checkSumCarry(boxIdx + 1, newFills), 300);
+        setTimeout(() => {
+          handlingRef.current = false;
+          checkSumCarry(boxIdx + 1, newFills);
+        }, 300);
       } else {
-        setIsWrong(true);
         hadErrorRef.current = true;
         resetCombo();
+        setIsWrong(true);
         setTimeout(() => {
           const newFills = [...fills];
           newFills[gIdx] = { value: box.answer, status: 'revealed' };
           setIsWrong(false);
+          handlingRef.current = false;
           checkSumCarry(boxIdx + 1, newFills);
         }, 800);
       }
