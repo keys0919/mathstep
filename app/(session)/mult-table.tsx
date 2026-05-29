@@ -35,6 +35,7 @@ export default function MultTableScreen() {
   const startTimeRef = useRef(Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   const problem = problems[idx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
@@ -143,8 +144,14 @@ export default function MultTableScreen() {
     return 'disabled' as const;
   };
 
+  const handleInputFocus = useCallback(() => {
+    // 키보드 열리는 시간(~350ms) 대기 후 스크롤 → 입력창 항상 가시 영역 확보
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 400);
+  }, []);
+
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.container}
       contentContainerStyle={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}
       keyboardShouldPersistTaps="handled"
@@ -234,6 +241,7 @@ export default function MultTableScreen() {
               keyboardType="numeric"
               returnKeyType="done"
               onSubmitEditing={handleSubmit}
+              onFocus={handleInputFocus}
               editable={status === 'answering'}
               placeholder="정답 입력"
               placeholderTextColor="#B0BEC5"

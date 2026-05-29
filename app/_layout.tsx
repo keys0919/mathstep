@@ -22,11 +22,19 @@ export default function RootLayout() {
   useEffect(() => {
     loadConfig();
     loadProgress();
-    if (Platform.OS === 'web' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/mathstep/sw.js').catch(() => {});
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        window.location.reload();
-      });
+    if (Platform.OS === 'web') {
+      // Chrome 108+ 기본값 변경: 키보드 열려도 layout viewport 유지 → 입력창 화면 이탈 버그
+      // resizes-content로 복원: 키보드 열리면 layout viewport도 함께 줄어들어 ScrollView가 자동 스크롤됨
+      const vp = document.querySelector('meta[name="viewport"]');
+      if (vp) {
+        vp.setAttribute('content', 'width=device-width, initial-scale=1, shrink-to-fit=no, interactive-widget=resizes-content');
+      }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/mathstep/sw.js').catch(() => {});
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        });
+      }
     }
   }, []);
 
