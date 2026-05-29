@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../../src/stores/progress.store';
@@ -144,7 +144,12 @@ export default function MultTableScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
 
       {/* 헤더 */}
       <View style={styles.header}>
@@ -254,13 +259,17 @@ export default function MultTableScreen() {
       )}
 
 
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  container: {
     flex: 1,
+    backgroundColor: '#F9FBE7',
+  },
+  screen: {
+    flexGrow: 1,
     backgroundColor: '#F9FBE7',
     paddingHorizontal: 16,
   },
