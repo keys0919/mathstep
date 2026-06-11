@@ -201,10 +201,13 @@ export default function MentalScreen() {
   );
 
   const handleCarryChoice = useCallback((choice: number) => {
+    if (handlingRef.current) return;
+    handlingRef.current = true;
     const correct = choice === problemCarries[0];
     if (!correct) hadWrongRef.current = true;
     setPendingCarryCheck(false);
     setBoxIdx(pendingNextBoxRef.current);
+    handlingRef.current = false;
   }, [problemCarries]);
 
   const carryChoices = useMemo(() => {

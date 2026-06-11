@@ -111,7 +111,7 @@ export default function MultTableScreen() {
       } else {
         setIdx(next);
       }
-    }, correct ? 600 : 800);
+    }, correct ? 400 : 800);
   }, [retrying, multLevel, problem, idx, problems, config]);
 
   // Level 0: 객관식
