@@ -12,8 +12,8 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
   config: {
     multTableTimeSec: 3,
     multTableGradSessions: 3,
-    multTablePerSession: 7,
-    mentalPerSession: 4,
+    multTablePerSession: 5,
+    mentalPerSession: 3,
     bigNumSessionMin: 10,
     comboThreshold1: 5,
     comboThreshold2: 10,
