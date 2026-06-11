@@ -15,23 +15,29 @@ export function buildMultTableSession(
 ): MultTableProblem[] {
   const pool: MultTableProblem[] = [];
 
+  // 약점 점수 계산 후 상위 K개 고정 등장 보장
+  type WeakCandidate = { a: number; b: number; score: number };
+  const weakCandidates: WeakCandidate[] = [];
+
   for (let a = 2; a <= 9; a++) {
     for (let b = 2; b <= 9; b++) {
       const key = `${a}x${b}`;
       const isGraduated = multTable.graduated.some(([x, y]) => x === a && y === b);
       if (isGraduated) continue;
 
-      // 7~9단 집중: 한쪽이라도 7 이상이면 가중치 3, 아니면 1
       const baseWeight = (a >= 7 && b >= 7) ? 6 : (a >= 7 || b >= 7) ? 4 : 1;
-
       const entry = multTable.weak[key];
-      const weakBonus = entry && (entry.errors > 0 || entry.slowCount > 0) ? 2 : 0;
+      const weakScore = entry ? entry.errors * 2 + entry.slowCount : 0;
+      // 약점 점수 비례 보너스: 최소 0, 최대 5
+      const weakBonus = Math.min(5, weakScore);
 
       const weight = baseWeight + weakBonus;
       const ans = a * b;
       for (let i = 0; i < weight; i++) {
         pool.push({ a, b, answer: ans, choices: multTableChoices(ans) });
       }
+
+      if (weakScore > 0) weakCandidates.push({ a, b, score: weakScore });
     }
   }
 
@@ -43,22 +49,31 @@ export function buildMultTableSession(
         pool.push({ a, b, answer: ans, choices: multTableChoices(ans) });
       }
     }
+    return shuffle(pool).slice(0, count);
   }
 
-  shuffle(pool);
+  // 상위 2개 약점 쌍 고정 배치 (count 여유 있을 때만)
+  weakCandidates.sort((x, y) => y.score - x.score);
+  const pinned = weakCandidates.slice(0, Math.min(2, Math.floor(count / 2)));
+  const pinnedSet = new Set(pinned.map(({ a, b }) => `${a}x${b}`));
 
-  const result: MultTableProblem[] = [];
-  for (let i = 0; i < count; i++) {
+  const result: MultTableProblem[] = pinned.map(({ a, b }) => {
+    const ans = a * b;
+    return { a, b, answer: ans, choices: multTableChoices(ans) };
+  });
+
+  // 나머지 슬롯을 가중 풀에서 채우되 직전 중복 방지
+  const remaining = shuffle(pool.filter((p) => !pinnedSet.has(`${p.a}x${p.b}`)));
+  let ri = 0;
+  while (result.length < count) {
     const last = result[result.length - 1];
-    let candidate = pool[i % pool.length];
-
-    // 직전 문제 중복 방지
+    let candidate = remaining[ri % remaining.length];
     if (last && candidate.a === last.a && candidate.b === last.b) {
-      const alt = pool.find((p) => !(p.a === last.a && p.b === last.b));
+      const alt = remaining.find((p) => !(p.a === last.a && p.b === last.b));
       if (alt) candidate = alt;
     }
-
     result.push({ ...candidate, choices: multTableChoices(candidate.answer) });
+    ri++;
   }
 
   return result;
