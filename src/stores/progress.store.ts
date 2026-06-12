@@ -12,7 +12,7 @@ interface ProgressStore {
   load: () => void;
   saveSession: (record: SessionRecord) => void;
   recordMultTableResult: (a: number, b: number, correct: boolean, timeSec: number, timeLimitSec: number) => void;
-  checkAndGraduate: (a: number, b: number, gradSessions: number) => void;
+  checkAndGraduate: (a: number, b: number, gradSessions: number) => boolean;
 }
 
 export const useProgressStore = create<ProgressStore>((set, get) => ({
@@ -134,13 +134,17 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     const data = loadData();
     const key = `${a}x${b}`;
     const entry = data.multTable.weak[key];
-    if (!entry) return;
+    if (!entry) return false;
 
     const next = { ...entry, gradSessionCount: entry.gradSessionCount + 1 };
     let graduated = [...data.multTable.graduated];
+    let justGraduated = false;
     if (next.gradSessionCount >= gradSessions) {
       const already = graduated.some(([x, y]) => x === a && y === b);
-      if (!already) graduated = [...graduated, [a, b]];
+      if (!already) {
+        graduated = [...graduated, [a, b]];
+        justGraduated = true;
+      }
     }
     const nextMultTable: MultTableData = {
       graduated,
@@ -148,5 +152,6 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     };
     saveData({ ...data, multTable: nextMultTable });
     set({ multTable: nextMultTable });
+    return justGraduated;
   },
 }));

@@ -38,6 +38,9 @@ export default function MultTableScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const handlingRef = useRef(false); // 중복 탭 방지
   const flashAnim = useRef(new Animated.Value(0)).current;
+  const [graduatedPair, setGraduatedPair] = useState<{ a: number; b: number } | null>(null);
+  const gradScale = useRef(new Animated.Value(0.5)).current;
+  const gradOpacity = useRef(new Animated.Value(1)).current;
 
   const problem = problems[idx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
@@ -76,7 +79,18 @@ export default function MultTableScreen() {
       if (correct) {
         incrementCombo(config.comboThreshold1, config.comboThreshold2);
         if (timeSec <= config.multTableTimeSec) {
-          checkAndGraduate(problem.a, problem.b, config.multTableGradSessions);
+          const justGraduated = checkAndGraduate(problem.a, problem.b, config.multTableGradSessions);
+          if (justGraduated) {
+            gradScale.setValue(0.5);
+            gradOpacity.setValue(1);
+            setGraduatedPair({ a: problem.a, b: problem.b });
+            Animated.sequence([
+              Animated.spring(gradScale, { toValue: 1.12, useNativeDriver: true, friction: 4, tension: 300 }),
+              Animated.spring(gradScale, { toValue: 1, useNativeDriver: true, friction: 8, tension: 200 }),
+              Animated.delay(1100),
+              Animated.timing(gradOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+            ]).start(() => { setGraduatedPair(null); gradOpacity.setValue(1); });
+          }
         }
       } else {
         resetCombo();
@@ -283,6 +297,21 @@ export default function MultTableScreen() {
       pointerEvents="none"
       style={[StyleSheet.absoluteFill, { backgroundColor: '#EF5350', opacity: flashAnim }]}
     />
+
+    {graduatedPair && (
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, styles.gradOverlay, { opacity: gradOpacity }]}
+      >
+        <Animated.View style={[styles.gradCard, { transform: [{ scale: gradScale }] }]}>
+          <Text style={styles.gradEmoji}>🏆</Text>
+          <Text style={styles.gradTitle}>
+            {graduatedPair.a} × {graduatedPair.b} 정복!
+          </Text>
+          <Text style={styles.gradAnswer}>= {graduatedPair.a * graduatedPair.b}</Text>
+        </Animated.View>
+      </Animated.View>
+    )}
     </View>
   );
 }
@@ -421,6 +450,39 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: 'Pretendard-Bold',
     color: '#EF5350',
+  },
+  gradOverlay: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  gradCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    paddingVertical: 28,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: '#FFD54F',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  gradEmoji: {
+    fontSize: 52,
+  },
+  gradTitle: {
+    fontSize: 24,
+    fontFamily: 'Pretendard-Bold',
+    color: '#2E3A23',
+    fontVariant: ['tabular-nums'],
+  },
+  gradAnswer: {
+    fontSize: 18,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#6A7B5A',
+    fontVariant: ['tabular-nums'],
   },
   submitBtn: {
     backgroundColor: '#4CAF50',
