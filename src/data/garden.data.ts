@@ -36,6 +36,23 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'mushroom',  category: 'deco',   name: '버섯',   emoji: '🍄', cost: { type: 'special', amount: 1 } },
   { id: 'stone',     category: 'deco',   name: '돌멩이', emoji: '🪨', cost: { type: 'special', amount: 1 } },
   { id: 'fence',     category: 'deco',   name: '울타리', emoji: '🪵', cost: { type: 'special', amount: 2 } },
+
+  // 추가 식물 (일반 씨앗)
+  { id: 'cactus',    category: 'plant',  name: '선인장', emoji: '🌵', cost: { type: 'normal', amount: 3 } },
+  { id: 'tulip',     category: 'plant',  name: '튤립',   emoji: '🌷', cost: { type: 'normal', amount: 2 } },
+  { id: 'bamboo',    category: 'plant',  name: '대나무', emoji: '🎋', cost: { type: 'normal', amount: 4 }, unlockZone: 'forest' },
+  { id: 'maple',     category: 'plant',  name: '단풍나무', emoji: '🍁', cost: { type: 'normal', amount: 3 }, unlockZone: 'flower' },
+
+  // 추가 동물 (희귀 씨앗)
+  { id: 'butterfly', category: 'animal', name: '나비',   emoji: '🦋', cost: { type: 'rare', amount: 2 } },
+  { id: 'bird',      category: 'animal', name: '새',     emoji: '🐦', cost: { type: 'rare', amount: 2 } },
+  { id: 'turtle',    category: 'animal', name: '거북이', emoji: '🐢', cost: { type: 'rare', amount: 3 }, unlockZone: 'ocean' },
+  { id: 'raccoon',   category: 'animal', name: '너구리', emoji: '🦝', cost: { type: 'rare', amount: 3 }, unlockZone: 'flower' },
+
+  // 추가 장식 (특별 씨앗)
+  { id: 'campfire',  category: 'deco',   name: '모닥불', emoji: '🔥', cost: { type: 'special', amount: 1 } },
+  { id: 'lantern',   category: 'deco',   name: '랜턴',   emoji: '🏮', cost: { type: 'special', amount: 1 } },
+  { id: 'well',      category: 'deco',   name: '우물',   emoji: '⛲', cost: { type: 'special', amount: 2 }, unlockZone: 'ocean' },
 ];
 
 export const SEED_ICON: Record<SeedType, string> = {
