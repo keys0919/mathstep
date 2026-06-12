@@ -50,11 +50,14 @@ export default function CompleteScreen() {
         ? correctResults.reduce((acc, r) => acc + r.timeSec, 0) / correctResults.length
         : 0;
 
-    // 씨앗 결산
-    addSeed('normal');
-    const isMultPerfect = multTableResults.length > 0 && correctResults.length === multTableResults.length;
-    const isMentalPerfect = mentalTotal > 0 && mentalCorrect === mentalTotal;
-    if (isMultPerfect || isMentalPerfect) addSeed('special');
+    // 오늘 첫 세션에만 씨앗 보너스 지급
+    const isFirstToday = state.lastStudyDate !== todayStr();
+    if (isFirstToday) {
+      addSeed('normal');
+      const isMultPerfect = multTableResults.length > 0 && correctResults.length === multTableResults.length;
+      const isMentalPerfect = mentalTotal > 0 && mentalCorrect === mentalTotal;
+      if (isMultPerfect || isMentalPerfect) addSeed('special');
+    }
 
     const computed = useSessionStore.getState().seeds;
     setFinalSeeds(computed);
@@ -84,15 +87,18 @@ export default function CompleteScreen() {
   }, []);
 
   const newStreak = state.streak;
+  const isFirstToday = state.lastStudyDate !== todayStr();
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 24 }]}>
 
       {/* 완료 헤더 */}
       <View style={styles.header}>
-        <Text style={styles.emoji}>🎉</Text>
+        <Text style={styles.emoji}>{isFirstToday ? '🎉' : '💪'}</Text>
         <Text style={styles.title}>세션 완료!</Text>
-        <Text style={styles.subtitle}>오늘도 정말 잘했어!</Text>
+        <Text style={styles.subtitle}>
+          {isFirstToday ? '오늘도 정말 잘했어!' : '추가 연습까지 완벽해!'}
+        </Text>
       </View>
 
       {/* 씨앗 카드 */}

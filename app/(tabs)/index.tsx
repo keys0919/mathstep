@@ -106,11 +106,7 @@ export default function HomeScreen() {
 
   const cardWidth = SW - 32;
 
-  // 1일 1세션 캡
   const todayDone = state.lastStudyDate === todayStr();
-  const bonusUnlocked = state.bonusUnlocked ?? false;
-  const canStart = !todayDone || bonusUnlocked;
-  const isBonus = todayDone && bonusUnlocked;
 
   const shields = state.shields ?? 0;
   const mission = state.dailyMission;
@@ -206,31 +202,18 @@ export default function HomeScreen() {
       <View style={styles.spacer} />
 
       {/* ── 시작 버튼 ── */}
-      {canStart ? (
-        <Pressable
-          style={({ pressed }) => [
-            styles.startBtn,
-            isBonus ? styles.startBtnBonus : { backgroundColor: mapColor },
-            { transform: [{ scale: pressed ? 0.97 : 1 }] },
-          ]}
-          onPress={handleStart}
-        >
-          <Text style={styles.startBtnText}>
-            {isBonus ? '🌟 보너스 라운드' : '세션 시작하기'}
-          </Text>
-          <Text style={styles.startBtnSub}>
-            {isBonus ? '퍼펙트 클리어 보상!' : '완료하면 씨앗 +1 획득'}
-          </Text>
-        </Pressable>
-      ) : (
-        <View style={styles.doneBanner}>
-          <Text style={styles.doneBannerEmoji}>✅</Text>
-          <View>
-            <Text style={styles.doneBannerTitle}>오늘 세션 완료!</Text>
-            <Text style={styles.doneBannerSub}>내일 또 만나요 👋</Text>
-          </View>
-        </View>
-      )}
+      <Pressable
+        style={({ pressed }) => [
+          styles.startBtn,
+          { backgroundColor: mapColor, transform: [{ scale: pressed ? 0.97 : 1 }] },
+        ]}
+        onPress={handleStart}
+      >
+        <Text style={styles.startBtnText}>세션 시작하기</Text>
+        <Text style={styles.startBtnSub}>
+          {todayDone ? '추가 세션 · 씨앗 보너스 없음' : '완료하면 씨앗 +1 획득'}
+        </Text>
+      </Pressable>
 
       <View style={{ height: insets.bottom + 24 }} />
     </View>
