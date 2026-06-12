@@ -184,12 +184,22 @@ export function buildMultiplySession(count: number): MultiplyProblem[] {
     const p2Tens = Math.floor(partial2 / 10) % 10;
     const p1Hundreds = Math.floor(partial1 / 100);
     const tensCol = p1Tens + p2Ones;
-    const carry1 = Math.floor(tensCol / 10); // 십→백 올림
+    const carry1 = Math.floor(tensCol / 10);
     const hundredsCol = p1Hundreds + p2Tens + carry1;
-    const carry2 = Math.floor(hundredsCol / 10); // 백→천 올림
+    const carry2 = Math.floor(hundredsCol / 10);
     const sumCarries: [number, number] = [carry1, carry2];
 
-    problems.push({ a, b, partial1, partial2, sum, p1Len: 3, boxes, sumCarries });
+    // 부분곱 단계 올림 수 계산 (일→십, 십→백)
+    const aOnes = a % 10;
+    const aTens = Math.floor(a / 10) % 10;
+    const p1c01 = Math.floor((aOnes * onesB) / 10);
+    const p1c12 = Math.floor((aTens * onesB + p1c01) / 10);
+    const p2c01 = Math.floor((aOnes * tensB) / 10);
+    const p2c12 = Math.floor((aTens * tensB + p2c01) / 10);
+    const p1Carries: [number, number] = [p1c01, p1c12];
+    const p2Carries: [number, number] = [p2c01, p2c12];
+
+    problems.push({ a, b, partial1, partial2, sum, p1Len: 3, boxes, sumCarries, p1Carries, p2Carries });
   }
 
   return problems;

@@ -27,6 +27,9 @@ export interface MultiplyProblem {
   boxes: BoxDef[];
   // 합산 단계 올림 수: [십→백, 백→천] (0이면 올림 없음)
   sumCarries: [number, number];
+  // 부분곱 단계 올림 수: [일→십, 십→백]
+  p1Carries: [number, number];
+  p2Carries: [number, number];
 }
 
 export interface DivideProblem {

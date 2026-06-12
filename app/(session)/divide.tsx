@@ -18,13 +18,6 @@ const DIV_AREA_W = 2 * CELL + BRACKET_W;
 
 type FillEntry = { value: number; status: 'correct' | 'revealed' };
 
-// 숫자를 3자리 오른쪽 정렬 셀 배열로 변환 (null = 빈 셀)
-function toRightCells(n: number): (number | null)[] {
-  const s = String(n);
-  const result: (number | null)[] = new Array(3 - s.length).fill(null);
-  for (const ch of s) result.push(Number(ch));
-  return result;
-}
 
 export default function DivideScreen() {
   const router = useRouter();
@@ -161,21 +154,19 @@ export default function DivideScreen() {
 
   // 계산 행 렌더링 헬퍼 (오른쪽 정렬, minus 선택)
   const renderCalcRow = (n: number, withMinus: boolean) => {
-    const cells = toRightCells(n);
     const numLen = String(n).length;
     const padLen = 3 - numLen;
     const leftOffset = withMinus
       ? DIV_AREA_W + (padLen - 1) * CELL  // minus 기호 공간 확보
       : DIV_AREA_W + padLen * CELL;
+    const digits = String(n).split('').map(Number);
     return (
       <View style={styles.row}>
         <View style={{ width: Math.max(0, leftOffset) }} />
         {withMinus && <Text style={styles.minus}>−</Text>}
-        {cells.map((d, i) => (
+        {digits.map((d, i) => (
           <View key={i} style={styles.cell}>
-            {d !== null && (
-              <Text style={[styles.digit, styles.calcText]}>{d}</Text>
-            )}
+            <Text style={[styles.digit, styles.calcText]}>{d}</Text>
           </View>
         ))}
       </View>

@@ -280,11 +280,45 @@ export default function MultiplyScreen() {
           {/* 가로줄 1 */}
           <Divider />
 
+          {/* partial1 올림 수 행: 일→십 carry (B2 위), 십→백 carry (B1 위) */}
+          <View style={styles.row}>
+            <View style={styles.opCol} />
+            <View style={styles.carryCell} />
+            <View style={styles.carryCell}>
+              {fills[1] !== null && problem.p1Carries[1] > 0 && (
+                <Text style={styles.carryText}>{problem.p1Carries[1]}</Text>
+              )}
+            </View>
+            <View style={styles.carryCell}>
+              {fills[2] !== null && problem.p1Carries[0] > 0 && (
+                <Text style={styles.carryText}>{problem.p1Carries[0]}</Text>
+              )}
+            </View>
+            <View style={styles.carryCell} />
+          </View>
+
           {/* partial1 행: col 0 빈, col 1~3 = 3자리 부분곱 박스 */}
           <View style={styles.row}>
             <View style={styles.opCol} />
             {E('p1-0')}
             {p1Cells.map((_, i) => B(P1_START + i, `p1-${i + 1}`))}
+          </View>
+
+          {/* partial2 올림 수 행: 일→십 carry (B4 위), 십→백 carry (B3 위) */}
+          <View style={styles.row}>
+            <View style={styles.opCol} />
+            <View style={styles.carryCell}>
+              {fills[4] !== null && problem.p2Carries[1] > 0 && (
+                <Text style={styles.carryText}>{problem.p2Carries[1]}</Text>
+              )}
+            </View>
+            <View style={styles.carryCell}>
+              {fills[5] !== null && problem.p2Carries[0] > 0 && (
+                <Text style={styles.carryText}>{problem.p2Carries[0]}</Text>
+              )}
+            </View>
+            <View style={styles.carryCell} />
+            <View style={styles.carryCell} />
           </View>
 
           {/* partial2 행: col 0~2 = 3자리 부분곱 박스 + 들여쓰기 */}
