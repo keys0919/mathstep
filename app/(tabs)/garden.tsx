@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions, Image, ImageSourcePropType,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../../src/stores/progress.store';
@@ -211,12 +212,9 @@ export default function GardenScreen() {
                       onPress={() => handleCellPress(mapId, idx)}
                     >
                       {display ? (
-                        <Text style={[
-                          styles.cellEmoji,
-                          cell?.type === 'animal' && styles.cellEmojiAnimal,
-                        ]}>
-                          {display}
-                        </Text>
+                        cell?.type === 'animal'
+                          ? <AnimalEmoji emoji={display} offset={idx % 3} />
+                          : <Text style={styles.cellEmoji}>{display}</Text>
                       ) : canPlace ? (
                         <Text style={styles.cellPlus}>+</Text>
                       ) : null}
@@ -452,6 +450,31 @@ const styles = StyleSheet.create({
   removeBtnNoText: { fontSize: 15, fontFamily: 'Pretendard-SemiBold', color: '#757575' },
   removeBtnYesText: { fontSize: 15, fontFamily: 'Pretendard-Bold', color: '#FFF' },
 });
+
+function AnimalEmoji({ emoji, offset }: { emoji: string; offset: number }) {
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(translateY, { toValue: -7, duration: 260, useNativeDriver: true }),
+          Animated.timing(translateY, { toValue: 0, duration: 260, useNativeDriver: true }),
+          Animated.delay(1800 + offset * 300),
+        ])
+      );
+      anim.start();
+      return () => anim.stop();
+    }, offset * 400);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <Animated.Text style={[styles.cellEmojiAnimal, { transform: [{ translateY }] }]}>
+      {emoji}
+    </Animated.Text>
+  );
+}
 
 function SeedChip({ img, count, bg, tint }: {
   img: ImageSourcePropType; count: number; bg: string; tint: string;
