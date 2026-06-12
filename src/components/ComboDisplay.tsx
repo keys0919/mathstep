@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View, Easing } from 'react-native';
 
 interface Props {
   combo: number;
@@ -10,6 +10,7 @@ export default function ComboDisplay({ combo, threshold }: Props) {
   const scale = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-8)).current;
   const barWidth = useRef(new Animated.Value(0)).current;
+  const wobble = useRef(new Animated.Value(0)).current;
 
   const isAchieved = combo >= threshold;
   const isBuilding = combo > 0 && !isAchieved;
@@ -29,20 +30,32 @@ export default function ComboDisplay({ combo, threshold }: Props) {
   // 달성 배지 애니메이션
   useEffect(() => {
     if (combo === threshold) {
-      translateY.setValue(-12);
-      Animated.parallel([
-        Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 5, tension: 200 }),
-        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, friction: 6, tension: 180 }),
+      translateY.setValue(-16);
+      scale.setValue(0);
+      wobble.setValue(0);
+      Animated.sequence([
+        Animated.parallel([
+          Animated.spring(scale, { toValue: 1.3, useNativeDriver: true, friction: 3, tension: 500 }),
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true, friction: 5, tension: 300 }),
+        ]),
+        Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 200 }),
+        Animated.sequence([
+          Animated.timing(wobble, { toValue: 1, duration: 70, useNativeDriver: true, easing: Easing.linear }),
+          Animated.timing(wobble, { toValue: -1, duration: 70, useNativeDriver: true, easing: Easing.linear }),
+          Animated.timing(wobble, { toValue: 0.6, duration: 70, useNativeDriver: true, easing: Easing.linear }),
+          Animated.timing(wobble, { toValue: 0, duration: 70, useNativeDriver: true, easing: Easing.linear }),
+        ]),
       ]).start();
     } else if (combo > threshold) {
       Animated.sequence([
-        Animated.spring(scale, { toValue: 1.15, useNativeDriver: true, friction: 4, tension: 300 }),
-        Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 150 }),
+        Animated.spring(scale, { toValue: 1.2, useNativeDriver: true, friction: 3, tension: 400 }),
+        Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 200 }),
       ]).start();
     } else if (combo === 0) {
       scale.setValue(0);
       barWidth.setValue(0);
-      translateY.setValue(-12);
+      translateY.setValue(-16);
+      wobble.setValue(0);
     }
   }, [combo]);
 
@@ -56,11 +69,12 @@ export default function ComboDisplay({ combo, threshold }: Props) {
     const bg = `rgb(255, ${g}, ${b})`;
     const border = `rgb(${Math.round(255 * 0.78)}, ${Math.round(g * 0.78)}, ${Math.round(b * 0.78)})`;
 
+    const rotate = wobble.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-12deg', '0deg', '12deg'] });
     return (
       <Animated.View
         style={[
           styles.badge,
-          { backgroundColor: bg, borderBottomColor: border, transform: [{ scale }, { translateY }] },
+          { backgroundColor: bg, borderBottomColor: border, transform: [{ scale }, { translateY }, { rotate }] },
         ]}
       >
         <Text style={styles.badgeText}>🔥 {combo} COMBO</Text>

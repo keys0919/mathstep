@@ -38,12 +38,24 @@ export default function MultTableScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const handlingRef = useRef(false); // 중복 탭 방지
   const flashAnim = useRef(new Animated.Value(0)).current;
+  const goldFlashAnim = useRef(new Animated.Value(0)).current;
+  const correctPulse = useRef(new Animated.Value(1)).current;
   const [graduatedPair, setGraduatedPair] = useState<{ a: number; b: number } | null>(null);
   const gradScale = useRef(new Animated.Value(0.5)).current;
   const gradOpacity = useRef(new Animated.Value(1)).current;
 
   const problem = problems[idx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
+
+  // 콤보 milestone → golden flash
+  useEffect(() => {
+    if (combo === config.comboThreshold1 || combo === config.comboThreshold2) {
+      Animated.sequence([
+        Animated.timing(goldFlashAnim, { toValue: 0.35, duration: 100, useNativeDriver: true }),
+        Animated.timing(goldFlashAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [combo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     startTimeRef.current = Date.now();
@@ -77,6 +89,11 @@ export default function MultTableScreen() {
       addMultTableResult({ a: problem.a, b: problem.b, correct, timeSec });
       addLog({ type: 'mult', problem: `${problem.a}×${problem.b}`, correct, timeSec });
       if (correct) {
+        correctPulse.setValue(1);
+        Animated.sequence([
+          Animated.spring(correctPulse, { toValue: 1.1, useNativeDriver: true, friction: 3, tension: 600 }),
+          Animated.spring(correctPulse, { toValue: 1, useNativeDriver: true, friction: 7, tension: 200 }),
+        ]).start();
         incrementCombo(config.comboThreshold1, config.comboThreshold2);
         if (timeSec <= config.multTableTimeSec) {
           const justGraduated = checkAndGraduate(problem.a, problem.b, config.multTableGradSessions);
@@ -196,7 +213,7 @@ export default function MultTableScreen() {
       </View>
 
       {/* 문제 카드 */}
-      <View style={styles.problemCard}>
+      <Animated.View style={[styles.problemCard, { transform: [{ scale: correctPulse }] }]}>
         <Text style={styles.problemText}>
           {problem.a} × {problem.b} = ?
         </Text>
@@ -205,7 +222,7 @@ export default function MultTableScreen() {
             {problem.answer}
           </Text>
         )}
-      </View>
+      </Animated.View>
 
       {/* 타이머 */}
       <Text style={[styles.timer, isOverTime && styles.timerOver]}>
@@ -296,6 +313,10 @@ export default function MultTableScreen() {
     <Animated.View
       pointerEvents="none"
       style={[StyleSheet.absoluteFill, { backgroundColor: '#EF5350', opacity: flashAnim }]}
+    />
+    <Animated.View
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, { backgroundColor: '#FFD54F', opacity: goldFlashAnim }]}
     />
 
     {graduatedPair && (

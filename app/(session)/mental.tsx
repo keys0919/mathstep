@@ -80,6 +80,8 @@ export default function MentalScreen() {
   const hadWrongRef = useRef(false);
   const handlingRef = useRef(false); // 중복 탭 방지
   const flashAnim = useRef(new Animated.Value(0)).current;
+  const goldFlashAnim = useRef(new Animated.Value(0)).current;
+  const correctPulse = useRef(new Animated.Value(1)).current;
   const [pendingCarryCheck, setPendingCarryCheck] = useState(false);
   const pendingNextBoxRef = useRef(0);
 
@@ -129,6 +131,11 @@ export default function MentalScreen() {
       addMentalResult(correct);
       addLog({ type: 'mental', problem: `${problem.a}${problem.op}${problem.b}`, correct });
       if (correct) {
+        correctPulse.setValue(1);
+        Animated.sequence([
+          Animated.spring(correctPulse, { toValue: 1.08, useNativeDriver: true, friction: 3, tension: 600 }),
+          Animated.spring(correctPulse, { toValue: 1, useNativeDriver: true, friction: 7, tension: 200 }),
+        ]).start();
         addSeed('normal');
         incrementCombo(config.comboThreshold1, config.comboThreshold2);
       } else {
@@ -159,6 +166,13 @@ export default function MentalScreen() {
         const next = boxIdx + 1;
         if (next >= answerDigits.length) {
           const problemCorrect = !hadWrongRef.current;
+          if (problemCorrect) {
+            correctPulse.setValue(1);
+            Animated.sequence([
+              Animated.spring(correctPulse, { toValue: 1.08, useNativeDriver: true, friction: 3, tension: 600 }),
+              Animated.spring(correctPulse, { toValue: 1, useNativeDriver: true, friction: 7, tension: 200 }),
+            ]).start();
+          }
           addMentalResult(problemCorrect);
           addLog({ type: 'mental', problem: `${problem.a}${problem.op}${problem.b}`, correct: problemCorrect });
           setFills(newFills);
@@ -219,6 +233,15 @@ export default function MentalScreen() {
       ]).start();
     }
   }, [isWrong, status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (combo === config.comboThreshold1 || combo === config.comboThreshold2) {
+      Animated.sequence([
+        Animated.timing(goldFlashAnim, { toValue: 0.35, duration: 100, useNativeDriver: true }),
+        Animated.timing(goldFlashAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [combo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const carryChoices = useMemo(() => {
     const carry = problemCarries[0];
@@ -303,7 +326,7 @@ export default function MentalScreen() {
       </View>
 
       {/* 필산 카드 */}
-      <View style={styles.card}>
+      <Animated.View style={[styles.card, { transform: [{ scale: correctPulse }] }]}>
         <View style={styles.grid}>
 
           {/* 올림/빌림 행 (Level 1 전용, boxIdx >= 1일 때) */}
@@ -408,7 +431,7 @@ export default function MentalScreen() {
             )}
           </View>
         )}
-      </View>
+      </Animated.View>
 
       {/* 객관식 보기 */}
       <View style={styles.choices}>
@@ -443,6 +466,10 @@ export default function MentalScreen() {
       <Animated.View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: '#EF5350', opacity: flashAnim }]}
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#FFD54F', opacity: goldFlashAnim }]}
       />
     </View>
   );

@@ -40,6 +40,7 @@ export default function DivideScreen() {
   const [isWrong, setIsWrong] = useState(false);
   const hadErrorRef = useRef(false);
   const flashAnim = useRef(new Animated.Value(0)).current;
+  const goldFlashAnim = useRef(new Animated.Value(0)).current;
 
   const problem = problems[pIdx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
@@ -120,6 +121,15 @@ export default function DivideScreen() {
       ]).start();
     }
   }, [isWrong]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (combo === config.comboThreshold1 || combo === config.comboThreshold2) {
+      Animated.sequence([
+        Animated.timing(goldFlashAnim, { toValue: 0.35, duration: 100, useNativeDriver: true }),
+        Animated.timing(goldFlashAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [combo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentBox = problem.boxes[boxIdx];
 
@@ -276,6 +286,10 @@ export default function DivideScreen() {
       <Animated.View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: '#EF5350', opacity: flashAnim }]}
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#FFD54F', opacity: goldFlashAnim }]}
       />
     </View>
   );

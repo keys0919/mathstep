@@ -44,6 +44,7 @@ export default function MultiplyScreen() {
   const hadErrorRef = useRef(false);
   const handlingRef = useRef(false); // 중복 탭 방지
   const flashAnim = useRef(new Animated.Value(0)).current;
+  const goldFlashAnim = useRef(new Animated.Value(0)).current;
   // 합산 단계 올림 수 입력 상태
   const [pendingCarryCheck, setPendingCarryCheck] = useState(false);
   const pendingNextStepRef = useRef(0);
@@ -175,6 +176,15 @@ export default function MultiplyScreen() {
       ]).start();
     }
   }, [isWrong]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (combo === config.comboThreshold1 || combo === config.comboThreshold2) {
+      Animated.sequence([
+        Animated.timing(goldFlashAnim, { toValue: 0.35, duration: 100, useNativeDriver: true }),
+        Animated.timing(goldFlashAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [combo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentBox = problem.boxes[ACTIVATION_ORDER[Math.min(boxIdx, ACTIVATION_ORDER.length - 1)]];
 
@@ -339,6 +349,10 @@ export default function MultiplyScreen() {
       <Animated.View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: '#EF5350', opacity: flashAnim }]}
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#FFD54F', opacity: goldFlashAnim }]}
       />
     </View>
   );

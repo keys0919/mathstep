@@ -9,17 +9,23 @@ interface Props {
 export default function SeedCounter({ count, triggerAt }: Props) {
   const floatY = useRef(new Animated.Value(0)).current;
   const floatOpacity = useRef(new Animated.Value(0)).current;
+  const countScale = useRef(new Animated.Value(1)).current;
   const prevCount = useRef(count);
 
   useEffect(() => {
     if (count > prevCount.current) {
       floatY.setValue(0);
       floatOpacity.setValue(1);
+      countScale.setValue(1);
       Animated.parallel([
         Animated.timing(floatY, { toValue: -40, duration: 500, useNativeDriver: true }),
         Animated.sequence([
           Animated.delay(300),
           Animated.timing(floatOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.spring(countScale, { toValue: 1.7, useNativeDriver: true, friction: 3, tension: 500 }),
+          Animated.spring(countScale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 200 }),
         ]),
       ]).start();
     }
@@ -34,7 +40,9 @@ export default function SeedCounter({ count, triggerAt }: Props) {
         🌱+1
       </Animated.Text>
       <Text style={styles.seed}>🌱</Text>
-      <Text style={styles.count}>× {count}</Text>
+      <Animated.Text style={[styles.count, { transform: [{ scale: countScale }] }]}>
+        × {count}
+      </Animated.Text>
     </View>
   );
 }
