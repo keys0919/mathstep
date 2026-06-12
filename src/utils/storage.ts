@@ -21,6 +21,9 @@ const DEFAULT_STATE: AppState = {
   mentalLevel: 0,
   multLevel: 0,
   completedMaps: [],
+  shields: 0,
+  bonusUnlocked: false,
+  dailyMission: null,
 };
 
 const DEFAULT_MULT_TABLE: MultTableData = {

@@ -6,7 +6,7 @@ import { useSessionStore } from '../../src/stores/session.store';
 import { useProgressStore } from '../../src/stores/progress.store';
 import { useConfigStore } from '../../src/stores/config.store';
 import { todayStr } from '../../src/utils/storage';
-import { SessionSeeds } from '../../src/types/progress.types';
+import { SessionSeeds, DailyMission } from '../../src/types/progress.types';
 
 const MAP_LABEL: Record<string, string> = {
   forest: '숲', flower: '꽃밭', ocean: '바다정원', sky: '하늘정원',
@@ -14,6 +14,13 @@ const MAP_LABEL: Record<string, string> = {
 const MAP_COLOR: Record<string, string> = {
   forest: '#4CAF50', flower: '#FF80AB', ocean: '#40C4FF', sky: '#CE93D8',
 };
+
+function missionLabel(m: DailyMission): string {
+  if (m.type === 'combo') return `콤보 ${m.target} 달성`;
+  if (m.type === 'mult_perfect') return '구구단 오답 없이 통과';
+  if (m.type === 'mental_perfect') return '암산 오답 없이 통과';
+  return '오답 없이 클리어';
+}
 
 export default function CompleteScreen() {
   const router = useRouter();
@@ -26,6 +33,9 @@ export default function CompleteScreen() {
   const seedScale = useRef(new Animated.Value(0)).current;
   const statsOpacity = useRef(new Animated.Value(0)).current;
   const [finalSeeds, setFinalSeeds] = useState<SessionSeeds>(sessionSeeds);
+  const [missionDone, setMissionDone] = useState(false);
+  const [shieldGained, setShieldGained] = useState(false);
+  const [bonusReady, setBonusReady] = useState(false);
 
   const mapColor = MAP_COLOR[state.currentMap] ?? '#4CAF50';
   const mapLabel = MAP_LABEL[state.currentMap] ?? '숲';
@@ -41,7 +51,7 @@ export default function CompleteScreen() {
         : 0;
 
     // 씨앗 결산
-    addSeed('normal');  // 세션 완료 기본 1개
+    addSeed('normal');
     const isMultPerfect = multTableResults.length > 0 && correctResults.length === multTableResults.length;
     const isMentalPerfect = mentalTotal > 0 && mentalCorrect === mentalTotal;
     if (isMultPerfect || isMentalPerfect) addSeed('special');
@@ -49,7 +59,7 @@ export default function CompleteScreen() {
     const computed = useSessionStore.getState().seeds;
     setFinalSeeds(computed);
 
-    saveSession({
+    const result = saveSession({
       date: todayStr(),
       seeds: computed,
       maxCombo,
@@ -63,11 +73,17 @@ export default function CompleteScreen() {
       logs,
     });
 
+    setMissionDone(result.missionCompleted);
+    setShieldGained(result.shieldGranted);
+    setBonusReady(result.bonusUnlocked);
+
     Animated.sequence([
       Animated.spring(seedScale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 80 }),
       Animated.timing(statsOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  const newStreak = state.streak;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 24 }]}>
@@ -108,14 +124,38 @@ export default function CompleteScreen() {
         />
       </Animated.View>
 
-      {/* 다음 도전 힌트 (Zeigarnik) */}
+      {/* 보너스 결과 카드 */}
+      {(missionDone || shieldGained || bonusReady || (newStreak > 0 && newStreak % 3 === 0)) && (
+        <Animated.View style={[styles.bonusCard, { opacity: statsOpacity }]}>
+          {newStreak > 0 && newStreak % 7 === 0 && (
+            <Text style={styles.bonusLine}>🎉 {newStreak}일 연속! ✨ 특별 씨앗 보너스</Text>
+          )}
+          {newStreak > 0 && newStreak % 3 === 0 && newStreak % 7 !== 0 && (
+            <Text style={styles.bonusLine}>🔥 {newStreak}일 연속! 🌺 희귀 씨앗 보너스</Text>
+          )}
+          {missionDone && (
+            <Text style={styles.bonusLine}>🎯 미션 달성! {
+              state.dailyMission?.rewardType === 'rare' ? '🌺 희귀 씨앗 +1' : '✨ 특별 씨앗 +1'
+            }</Text>
+          )}
+          {shieldGained && (
+            <Text style={styles.bonusLine}>🛡️ 퍼펙트 클리어! 콤보 실드 +1 획득</Text>
+          )}
+          {bonusReady && (
+            <Text style={styles.bonusLine}>🌟 보너스 라운드 해금! 홈에서 확인해봐</Text>
+          )}
+        </Animated.View>
+      )}
+
+      {/* 다음 도전 힌트 */}
       <Animated.View style={[styles.nextCard, { opacity: statsOpacity }]}>
         <NextChallenges
           maxCombo={maxCombo}
           comboTarget={config.comboThreshold2}
           multMissed={multTableResults.length - multTableResults.filter(r => r.correct).length}
           mentalMissed={mentalTotal - mentalCorrect}
-          streak={state.streak}
+          streak={newStreak}
+          missionDone={missionDone}
         />
       </Animated.View>
 
@@ -138,17 +178,12 @@ export default function CompleteScreen() {
 }
 
 function NextChallenges({
-  maxCombo, comboTarget, multMissed, mentalMissed, streak,
+  maxCombo, comboTarget, multMissed, mentalMissed, streak, missionDone,
 }: {
-  maxCombo: number; comboTarget: number; multMissed: number; mentalMissed: number; streak: number;
+  maxCombo: number; comboTarget: number; multMissed: number; mentalMissed: number;
+  streak: number; missionDone: boolean;
 }) {
   const hints: string[] = [];
-
-  if (streak > 0 && streak % 7 === 0) {
-    hints.push(`🎉 ${streak}일 연속! 특별 씨앗 보너스 획득!`);
-  } else if (streak > 0 && streak % 3 === 0) {
-    hints.push(`🎉 ${streak}일 연속! 희귀 씨앗 보너스 획득!`);
-  }
 
   if (maxCombo < comboTarget) {
     hints.push(`콤보 ${comboTarget - maxCombo}개만 더! 🌺 희귀 씨앗이 기다려!`);
@@ -158,6 +193,9 @@ function NextChallenges({
   }
   if (mentalMissed > 0) {
     hints.push(`암산 ${mentalMissed}문제만 더 맞히면 ✨ 특별 씨앗!`);
+  }
+  if (!missionDone) {
+    hints.push('내일 미션도 도전해봐! 🎯');
   }
 
   if (hints.length === 0) return null;
@@ -199,7 +237,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 20,
     gap: 6,
   },
   emoji: {
@@ -221,7 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 20,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -268,6 +306,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     gap: 10,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -290,11 +329,24 @@ const styles = StyleSheet.create({
     color: '#2E3A23',
     fontVariant: ['tabular-nums'],
   },
+  bonusCard: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 8,
+    gap: 6,
+  },
+  bonusLine: {
+    fontSize: 14,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#2E7D32',
+    lineHeight: 20,
+  },
   nextCard: {
     marginBottom: 4,
   },
   nextInner: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#FFF3E0',
     borderRadius: 16,
     padding: 14,
     gap: 6,
@@ -302,7 +354,7 @@ const styles = StyleSheet.create({
   nextTitle: {
     fontSize: 13,
     fontFamily: 'Pretendard-SemiBold',
-    color: '#4CAF50',
+    color: '#FF9800',
     marginBottom: 2,
   },
   nextHint: {

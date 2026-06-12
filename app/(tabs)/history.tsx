@@ -1,7 +1,8 @@
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../../src/stores/progress.store';
 import { loadData, saveData, todayStr } from '../../src/utils/storage';
+import { MultTableData } from '../../src/types/progress.types';
 
 function formatDate(dateStr: string): string {
   const [, m, d] = dateStr.split('-');
@@ -49,9 +50,112 @@ function importJson() {
   input.click();
 }
 
+// ─── 구구단 진도 맵 ──────────────────────────────────────────────────
+function MultTableGrid({ multTable }: { multTable: MultTableData }) {
+  const { width: SW } = useWindowDimensions();
+  const labelW = 24;
+  const cellSize = Math.max(30, Math.floor((SW - 32 - labelW - 8 * 2) / 8));
+
+  const NUMS = [2, 3, 4, 5, 6, 7, 8, 9];
+
+  const graduated = new Set(multTable.graduated.map(([a, b]) => `${a}x${b}`));
+  const weak = multTable.weak;
+
+  function cellBg(a: number, b: number): string {
+    const key = `${a}x${b}`;
+    if (graduated.has(key)) return '#C8E6C9';
+    const entry = weak[key];
+    if (!entry) return '#F0F0F0';
+    if (entry.errors > 0) return '#FFCCBC';
+    if (entry.slowCount > 0) return '#FFF9C4';
+    return '#E8F5E9';
+  }
+
+  function cellMark(a: number, b: number): string {
+    const key = `${a}x${b}`;
+    if (graduated.has(key)) return '✓';
+    const entry = weak[key];
+    if (entry?.errors > 0) return String(entry.errors);
+    return '';
+  }
+
+  function cellMarkColor(a: number, b: number): string {
+    const key = `${a}x${b}`;
+    if (graduated.has(key)) return '#388E3C';
+    return '#BF360C';
+  }
+
+  const gradCount = multTable.graduated.length;
+  const totalPairs = 64;
+
+  return (
+    <View style={gridStyles.container}>
+      <View style={gridStyles.titleRow}>
+        <Text style={gridStyles.title}>📊 구구단 진도</Text>
+        <Text style={gridStyles.badge}>{gradCount}/{totalPairs} 졸업</Text>
+      </View>
+
+      {/* 열 헤더 */}
+      <View style={gridStyles.row}>
+        <View style={{ width: labelW }} />
+        {NUMS.map(n => (
+          <View key={n} style={[gridStyles.headerCell, { width: cellSize }]}>
+            <Text style={gridStyles.headerText}>{n}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* 행 */}
+      {NUMS.map(a => (
+        <View key={a} style={gridStyles.row}>
+          <View style={[gridStyles.headerCell, { width: labelW }]}>
+            <Text style={gridStyles.headerText}>{a}</Text>
+          </View>
+          {NUMS.map(b => {
+            const bg = cellBg(a, b);
+            const mark = cellMark(a, b);
+            const markColor = cellMarkColor(a, b);
+            return (
+              <View
+                key={b}
+                style={[gridStyles.cell, { width: cellSize, height: cellSize, backgroundColor: bg }]}
+              >
+                {mark ? (
+                  <Text style={[gridStyles.cellMark, { color: markColor, fontSize: cellSize > 36 ? 12 : 10 }]}>
+                    {mark}
+                  </Text>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+      ))}
+
+      {/* 범례 */}
+      <View style={gridStyles.legend}>
+        <LegendDot color="#C8E6C9" label="졸업" />
+        <LegendDot color="#FFCCBC" label="오답" />
+        <LegendDot color="#FFF9C4" label="느림" />
+        <LegendDot color="#E8F5E9" label="연습" />
+        <LegendDot color="#F0F0F0" label="미연습" />
+      </View>
+    </View>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <View style={gridStyles.legendItem}>
+      <View style={[gridStyles.legendDot, { backgroundColor: color }]} />
+      <Text style={gridStyles.legendLabel}>{label}</Text>
+    </View>
+  );
+}
+
+// ─── 메인 화면 ──────────────────────────────────────────────────────
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
-  const { sessions } = useProgressStore();
+  const { sessions, multTable } = useProgressStore();
 
   const recent = [...sessions].reverse().slice(0, 30);
 
@@ -70,6 +174,11 @@ export default function HistoryScreen() {
               <Text style={styles.exportText}>내보내기</Text>
             </Pressable>
           </View>
+        </View>
+
+        {/* 구구단 진도 맵 */}
+        <View style={styles.gridCard}>
+          <MultTableGrid multTable={multTable} />
         </View>
 
         {recent.length === 0 ? (
@@ -91,7 +200,6 @@ export default function HistoryScreen() {
 
               return (
                 <View key={i} style={styles.card}>
-                  {/* 카드 헤더 */}
                   <View style={styles.cardTop}>
                     <Text style={styles.date}>{formatDate(s.date)}</Text>
                     <View style={styles.seedRow}>
@@ -104,10 +212,8 @@ export default function HistoryScreen() {
                     </View>
                   </View>
 
-                  {/* 구분선 */}
                   <View style={styles.divider} />
 
-                  {/* 스탯 */}
                   <View style={styles.stats}>
                     <StatBlock
                       label="구구단"
@@ -161,6 +267,75 @@ function StatBlock({ label, value, accent, sub }: {
   );
 }
 
+const gridStyles = StyleSheet.create({
+  container: { gap: 4 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 15,
+    fontFamily: 'Pretendard-Bold',
+    color: '#2E3A23',
+  },
+  badge: {
+    fontSize: 12,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#388E3C',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 2,
+    marginBottom: 2,
+  },
+  headerCell: {
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerText: {
+    fontSize: 11,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#6A7B5A',
+  },
+  cell: {
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cellMark: {
+    fontFamily: 'Pretendard-Bold',
+    fontVariant: ['tabular-nums'],
+  },
+  legend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 3,
+  },
+  legendLabel: {
+    fontSize: 11,
+    fontFamily: 'Pretendard-Regular',
+    color: '#6A7B5A',
+  },
+});
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F9FBE7' },
   scroll: { paddingHorizontal: 16, paddingTop: 8 },
@@ -169,7 +344,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headerTitle: { fontSize: 24, fontFamily: 'Pretendard-Bold', color: '#2E3A23' },
   headerBtns: { flexDirection: 'row', gap: 8 },
@@ -183,9 +358,21 @@ const styles = StyleSheet.create({
   },
   exportText: { fontSize: 12, fontFamily: 'Pretendard-SemiBold', color: '#6A7B5A' },
 
+  gridCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
   empty: {
     flex: 1,
-    paddingTop: 80,
+    paddingTop: 40,
     alignItems: 'center',
     gap: 10,
   },

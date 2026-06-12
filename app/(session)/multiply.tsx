@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConfigStore } from '../../src/stores/config.store';
 import { useSessionStore } from '../../src/stores/session.store';
+import { useProgressStore } from '../../src/stores/progress.store';
 import { buildMultiplySession } from '../../src/utils/problems';
 import MathBox, { MathBoxState } from '../../src/components/MathBox';
 import ChoiceButton from '../../src/components/ChoiceButton';
@@ -33,6 +34,7 @@ export default function MultiplyScreen() {
   const insets = useSafeAreaInsets();
   const { config } = useConfigStore();
   const { seeds, combo, addSeed, addBigNumBox, addBigNumQuestion, addLog, incrementCombo, resetCombo } = useSessionStore();
+  const shields = useProgressStore((s) => s.state.shields ?? 0);
 
   const [problems] = useState(() => buildMultiplySession(2));
   const [pIdx, setPIdx] = useState(0);
@@ -45,6 +47,7 @@ export default function MultiplyScreen() {
   const handlingRef = useRef(false); // 중복 탭 방지
   const flashAnim = useRef(new Animated.Value(0)).current;
   const goldFlashAnim = useRef(new Animated.Value(0)).current;
+  const shieldFlashAnim = useRef(new Animated.Value(0)).current;
   // 합산 단계 올림 수 입력 상태
   const [pendingCarryCheck, setPendingCarryCheck] = useState(false);
   const pendingNextStepRef = useRef(0);
@@ -154,7 +157,15 @@ export default function MultiplyScreen() {
         }, 300);
       } else {
         hadErrorRef.current = true;
-        resetCombo();
+        const shieldUsed = useProgressStore.getState().useShield();
+        if (shieldUsed) {
+          Animated.sequence([
+            Animated.timing(shieldFlashAnim, { toValue: 0.55, duration: 80, useNativeDriver: true }),
+            Animated.timing(shieldFlashAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+          ]).start();
+        } else {
+          resetCombo();
+        }
         setIsWrong(true);
         setTimeout(() => {
           const newFills = [...fills];
@@ -238,6 +249,11 @@ export default function MultiplyScreen() {
       {/* 콤보 */}
       <View style={styles.comboArea}>
         <ComboDisplay combo={combo} threshold={config.comboThreshold1} />
+        {shields > 0 && (
+          <View style={styles.shieldBadge}>
+            <Text style={styles.shieldText}>🛡️ {shields}</Text>
+          </View>
+        )}
       </View>
 
       {/* 필산 카드 */}
@@ -353,6 +369,10 @@ export default function MultiplyScreen() {
       <Animated.View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: '#FFD54F', opacity: goldFlashAnim }]}
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#9C27B0', opacity: shieldFlashAnim }]}
       />
     </View>
   );
@@ -483,5 +503,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'flex-start',
+  },
+  shieldBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EDE7F6',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  shieldText: {
+    fontSize: 13,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#7E57C2',
   },
 });

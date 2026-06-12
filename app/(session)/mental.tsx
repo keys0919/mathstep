@@ -63,6 +63,7 @@ export default function MentalScreen() {
   const { config } = useConfigStore();
   const { seeds, combo, addSeed, addMentalResult, addLog, incrementCombo, resetCombo } = useSessionStore();
   const mentalLevel = useProgressStore((s) => s.state.mentalLevel ?? 0);
+  const shields = useProgressStore((s) => s.state.shields ?? 0);
 
   const [problems] = useState(() => buildMentalSession(config.mentalPerSession));
   const [idx, setIdx] = useState(0);
@@ -81,6 +82,7 @@ export default function MentalScreen() {
   const handlingRef = useRef(false); // 중복 탭 방지
   const flashAnim = useRef(new Animated.Value(0)).current;
   const goldFlashAnim = useRef(new Animated.Value(0)).current;
+  const shieldFlashAnim = useRef(new Animated.Value(0)).current;
   const correctPulse = useRef(new Animated.Value(1)).current;
   const [pendingCarryCheck, setPendingCarryCheck] = useState(false);
   const pendingNextBoxRef = useRef(0);
@@ -139,7 +141,15 @@ export default function MentalScreen() {
         addSeed('normal');
         incrementCombo(config.comboThreshold1, config.comboThreshold2);
       } else {
-        resetCombo();
+        const shieldUsed = useProgressStore.getState().useShield();
+        if (shieldUsed) {
+          Animated.sequence([
+            Animated.timing(shieldFlashAnim, { toValue: 0.55, duration: 80, useNativeDriver: true }),
+            Animated.timing(shieldFlashAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+          ]).start();
+        } else {
+          resetCombo();
+        }
       }
       setTimeout(() => {
         handlingRef.current = false;
@@ -192,7 +202,15 @@ export default function MentalScreen() {
         }
       } else {
         hadWrongRef.current = true;
-        resetCombo();
+        const shieldUsed = useProgressStore.getState().useShield();
+        if (shieldUsed) {
+          Animated.sequence([
+            Animated.timing(shieldFlashAnim, { toValue: 0.55, duration: 80, useNativeDriver: true }),
+            Animated.timing(shieldFlashAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+          ]).start();
+        } else {
+          resetCombo();
+        }
         setIsWrong(true);
         setTimeout(() => {
           const newFills = [...fills];
@@ -322,6 +340,11 @@ export default function MentalScreen() {
       {/* 콤보 + 씨앗 */}
       <View style={styles.comboArea}>
         <ComboDisplay combo={combo} threshold={config.comboThreshold2} />
+        {shields > 0 && (
+          <View style={styles.shieldBadge}>
+            <Text style={styles.shieldText}>🛡️ {shields}</Text>
+          </View>
+        )}
         <SeedCounter count={totalSeeds} />
       </View>
 
@@ -471,6 +494,10 @@ export default function MentalScreen() {
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: '#FFD54F', opacity: goldFlashAnim }]}
       />
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#9C27B0', opacity: shieldFlashAnim }]}
+      />
     </View>
   );
 }
@@ -612,5 +639,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     marginBottom: 24,
+  },
+  shieldBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EDE7F6',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  shieldText: {
+    fontSize: 13,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#7E57C2',
   },
 });

@@ -19,6 +19,7 @@ export default function MultTableScreen() {
 
   const { multTable, recordMultTableResult, checkAndGraduate } = useProgressStore();
   const multLevel = useProgressStore((s) => s.state.multLevel ?? 0);
+  const shields = useProgressStore((s) => s.state.shields ?? 0);
   const { config } = useConfigStore();
   const { seeds, combo, addSeed, addMultTableResult, addLog, incrementCombo, resetCombo } = useSessionStore();
 
@@ -39,6 +40,7 @@ export default function MultTableScreen() {
   const handlingRef = useRef(false); // 중복 탭 방지
   const flashAnim = useRef(new Animated.Value(0)).current;
   const goldFlashAnim = useRef(new Animated.Value(0)).current;
+  const shieldFlashAnim = useRef(new Animated.Value(0)).current;
   const correctPulse = useRef(new Animated.Value(1)).current;
   const [graduatedPair, setGraduatedPair] = useState<{ a: number; b: number } | null>(null);
   const gradScale = useRef(new Animated.Value(0.5)).current;
@@ -110,7 +112,15 @@ export default function MultTableScreen() {
           }
         }
       } else {
-        resetCombo();
+        const shieldUsed = useProgressStore.getState().useShield();
+        if (shieldUsed) {
+          Animated.sequence([
+            Animated.timing(shieldFlashAnim, { toValue: 0.55, duration: 80, useNativeDriver: true }),
+            Animated.timing(shieldFlashAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+          ]).start();
+        } else {
+          resetCombo();
+        }
         Animated.sequence([
           Animated.timing(flashAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
           Animated.timing(flashAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
@@ -209,6 +219,11 @@ export default function MultTableScreen() {
       {/* 콤보 + 씨앗 */}
       <View style={styles.comboArea}>
         <ComboDisplay combo={combo} threshold={config.comboThreshold2} />
+        {shields > 0 && (
+          <View style={styles.shieldBadge}>
+            <Text style={styles.shieldText}>🛡️ {shields}</Text>
+          </View>
+        )}
         <SeedCounter count={totalSeeds} />
       </View>
 
@@ -317,6 +332,10 @@ export default function MultTableScreen() {
     <Animated.View
       pointerEvents="none"
       style={[StyleSheet.absoluteFill, { backgroundColor: '#FFD54F', opacity: goldFlashAnim }]}
+    />
+    <Animated.View
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, { backgroundColor: '#9C27B0', opacity: shieldFlashAnim }]}
     />
 
     {graduatedPair && (
@@ -504,6 +523,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-SemiBold',
     color: '#6A7B5A',
     fontVariant: ['tabular-nums'],
+  },
+  shieldBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EDE7F6',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  shieldText: {
+    fontSize: 13,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#7E57C2',
   },
   submitBtn: {
     backgroundColor: '#4CAF50',

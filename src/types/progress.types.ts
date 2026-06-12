@@ -11,6 +11,14 @@ export interface Config {
   sessionsPerMap: number;
 }
 
+export interface DailyMission {
+  date: string;
+  type: 'combo' | 'mult_perfect' | 'mental_perfect' | 'no_error';
+  target: number;
+  completed: boolean;
+  rewardType: 'rare' | 'special';
+}
+
 export interface AppState {
   currentMap: MapId;
   sessionsCompleted: number;
@@ -19,6 +27,9 @@ export interface AppState {
   mentalLevel: 0 | 1;
   multLevel: 0 | 1;
   completedMaps: MapId[];
+  shields: number;
+  bonusUnlocked: boolean;
+  dailyMission: DailyMission | null;
 }
 
 export interface MultTableEntry {

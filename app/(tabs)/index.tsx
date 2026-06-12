@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../../src/stores/progress.store';
 import { useConfigStore } from '../../src/stores/config.store';
 import { useSessionStore } from '../../src/stores/session.store';
+import { todayStr } from '../../src/utils/storage';
+import { DailyMission } from '../../src/types/progress.types';
 
 // ─── 상수 ────────────────────────────────────────────────────────────
 const MAP_COLOR: Record<string, string> = {
@@ -64,6 +66,16 @@ function getMessage(stage: typeof CHAR_STAGES[0], streak: number) {
   return stage.messages[Math.floor(Date.now() / 86400000) % stage.messages.length];
 }
 
+function missionLabel(m: DailyMission): string {
+  if (m.type === 'combo') return `콤보 ${m.target} 달성하기 🔥`;
+  if (m.type === 'mult_perfect') return '구구단 오답 없이 통과 ⭐';
+  if (m.type === 'mental_perfect') return '암산 오답 없이 통과 ⭐';
+  return '오답 없이 클리어 ✨';
+}
+function missionReward(m: DailyMission): string {
+  return m.rewardType === 'rare' ? '🌺 희귀 씨앗 +1' : '✨ 특별 씨앗 +1';
+}
+
 // ─── 컴포넌트 ─────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter();
@@ -94,6 +106,15 @@ export default function HomeScreen() {
 
   const cardWidth = SW - 32;
 
+  // 1일 1세션 캡
+  const todayDone = state.lastStudyDate === todayStr();
+  const bonusUnlocked = state.bonusUnlocked ?? false;
+  const canStart = !todayDone || bonusUnlocked;
+  const isBonus = todayDone && bonusUnlocked;
+
+  const shields = state.shields ?? 0;
+  const mission = state.dailyMission;
+
   const handleStart = () => {
     resetSession();
     router.push('/(session)/mult-table');
@@ -107,22 +128,23 @@ export default function HomeScreen() {
         <View style={[styles.stageTag, { backgroundColor: mapColor + '22' }]}>
           <Text style={[styles.stageTagText, { color: mapColor }]}>{stage.label}</Text>
         </View>
-        {state.streak > 0 && (
-          <View style={styles.streakPill}>
-            <Text style={styles.streakText}>🔥 {state.streak}일 연속</Text>
-          </View>
-        )}
+        <View style={styles.topRight}>
+          {shields > 0 && (
+            <View style={styles.shieldPill}>
+              <Text style={styles.shieldPillText}>🛡️ {shields}</Text>
+            </View>
+          )}
+          {state.streak > 0 && (
+            <View style={styles.streakPill}>
+              <Text style={styles.streakText}>🔥 {state.streak}일 연속</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* ── 캐릭터 카드 ── */}
       <View style={[styles.charCard, { width: cardWidth, backgroundColor: mapBg }]}>
-        {/* 이미지: cover 모드로 검은 letterbox 제거 */}
-        <Image
-          source={CHAR_IMAGES[stage.imgIdx]}
-          style={styles.charImg}
-          resizeMode="cover"
-        />
-        {/* 하단 메시지 오버레이 */}
+        <Image source={CHAR_IMAGES[stage.imgIdx]} style={styles.charImg} resizeMode="cover" />
         <View style={styles.charMsgOverlay}>
           <Text style={styles.charMsgText}>{message}</Text>
         </View>
@@ -162,19 +184,53 @@ export default function HomeScreen() {
         )}
       </View>
 
+      {/* ── 오늘의 미션 ── */}
+      {mission && (
+        <View style={[styles.missionCard, mission.completed && styles.missionCardDone]}>
+          <View style={styles.missionLeft}>
+            <Text style={styles.missionLabel}>🎯 오늘의 미션</Text>
+            <Text style={[styles.missionDesc, mission.completed && styles.missionDescDone]}>
+              {missionLabel(mission)}
+            </Text>
+          </View>
+          <View style={styles.missionRight}>
+            {mission.completed ? (
+              <Text style={styles.missionDoneText}>✓ 완료</Text>
+            ) : (
+              <Text style={styles.missionRewardText}>{missionReward(mission)}</Text>
+            )}
+          </View>
+        </View>
+      )}
+
       <View style={styles.spacer} />
 
       {/* ── 시작 버튼 ── */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.startBtn,
-          { backgroundColor: mapColor, transform: [{ scale: pressed ? 0.97 : 1 }] },
-        ]}
-        onPress={handleStart}
-      >
-        <Text style={styles.startBtnText}>세션 시작하기</Text>
-        <Text style={styles.startBtnSub}>완료하면 씨앗 +1 획득</Text>
-      </Pressable>
+      {canStart ? (
+        <Pressable
+          style={({ pressed }) => [
+            styles.startBtn,
+            isBonus ? styles.startBtnBonus : { backgroundColor: mapColor },
+            { transform: [{ scale: pressed ? 0.97 : 1 }] },
+          ]}
+          onPress={handleStart}
+        >
+          <Text style={styles.startBtnText}>
+            {isBonus ? '🌟 보너스 라운드' : '세션 시작하기'}
+          </Text>
+          <Text style={styles.startBtnSub}>
+            {isBonus ? '퍼펙트 클리어 보상!' : '완료하면 씨앗 +1 획득'}
+          </Text>
+        </Pressable>
+      ) : (
+        <View style={styles.doneBanner}>
+          <Text style={styles.doneBannerEmoji}>✅</Text>
+          <View>
+            <Text style={styles.doneBannerTitle}>오늘 세션 완료!</Text>
+            <Text style={styles.doneBannerSub}>내일 또 만나요 👋</Text>
+          </View>
+        </View>
+      )}
 
       <View style={{ height: insets.bottom + 24 }} />
     </View>
@@ -220,6 +276,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Pretendard-SemiBold',
   },
+  topRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  shieldPill: {
+    backgroundColor: '#EDE7F6',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  shieldPillText: {
+    fontSize: 12,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#7E57C2',
+  },
   streakPill: {
     backgroundColor: '#FFF3E0',
     borderRadius: 20,
@@ -232,7 +304,6 @@ const styles = StyleSheet.create({
     color: '#FF7043',
   },
 
-  // 캐릭터 카드
   charCard: {
     borderRadius: 24,
     overflow: 'hidden',
@@ -261,7 +332,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // 정원 카드
   gardenCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
@@ -305,11 +375,11 @@ const styles = StyleSheet.create({
     color: '#6A7B5A',
   },
 
-  // 씨앗 현황
   seedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginBottom: 10,
   },
   seedSlot: {
     borderRadius: 14,
@@ -338,9 +408,56 @@ const styles = StyleSheet.create({
   },
   trophyIcon: { width: 16, height: 16 },
 
-  spacer: { flex: 1, minHeight: 12 },
+  missionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1.5,
+    borderColor: '#E8F5E9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  missionCardDone: {
+    borderColor: '#C8E6C9',
+    backgroundColor: '#F1F8E9',
+  },
+  missionLeft: { flex: 1, gap: 2 },
+  missionLabel: {
+    fontSize: 11,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#6A7B5A',
+  },
+  missionDesc: {
+    fontSize: 14,
+    fontFamily: 'Pretendard-Bold',
+    color: '#2E3A23',
+  },
+  missionDescDone: {
+    color: '#6A7B5A',
+    textDecorationLine: 'line-through',
+  },
+  missionRight: { alignItems: 'flex-end', marginLeft: 8 },
+  missionRewardText: {
+    fontSize: 12,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#FF9800',
+  },
+  missionDoneText: {
+    fontSize: 13,
+    fontFamily: 'Pretendard-Bold',
+    color: '#4CAF50',
+  },
 
-  // 시작 버튼
+  spacer: { flex: 1, minHeight: 8 },
+
   startBtn: {
     borderRadius: 24,
     justifyContent: 'center',
@@ -353,6 +470,9 @@ const styles = StyleSheet.create({
     elevation: 8,
     gap: 2,
   },
+  startBtnBonus: {
+    backgroundColor: '#F57F17',
+  },
   startBtnText: {
     fontSize: 19,
     fontFamily: 'Pretendard-Bold',
@@ -364,5 +484,28 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-Regular',
     color: '#FFFFFF',
     opacity: 0.8,
+  },
+
+  doneBanner: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderWidth: 2,
+    borderColor: '#C8E6C9',
+  },
+  doneBannerEmoji: { fontSize: 32 },
+  doneBannerTitle: {
+    fontSize: 17,
+    fontFamily: 'Pretendard-Bold',
+    color: '#2E3A23',
+  },
+  doneBannerSub: {
+    fontSize: 13,
+    fontFamily: 'Pretendard-Regular',
+    color: '#6A7B5A',
   },
 });

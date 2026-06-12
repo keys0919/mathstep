@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConfigStore } from '../../src/stores/config.store';
 import { useSessionStore } from '../../src/stores/session.store';
+import { useProgressStore } from '../../src/stores/progress.store';
 import { buildDivideSession } from '../../src/utils/problems';
 import MathBox, { MathBoxState } from '../../src/components/MathBox';
 import ChoiceButton from '../../src/components/ChoiceButton';
@@ -30,6 +31,7 @@ export default function DivideScreen() {
   const insets = useSafeAreaInsets();
   const { config } = useConfigStore();
   const { seeds, combo, addSeed, addBigNumBox, addBigNumQuestion, addLog, incrementCombo, resetCombo } = useSessionStore();
+  const shields = useProgressStore((s) => s.state.shields ?? 0);
 
   const [problems] = useState(() => buildDivideSession(2));
   const [pIdx, setPIdx] = useState(0);
@@ -41,6 +43,7 @@ export default function DivideScreen() {
   const hadErrorRef = useRef(false);
   const flashAnim = useRef(new Animated.Value(0)).current;
   const goldFlashAnim = useRef(new Animated.Value(0)).current;
+  const shieldFlashAnim = useRef(new Animated.Value(0)).current;
 
   const problem = problems[pIdx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
@@ -94,7 +97,15 @@ export default function DivideScreen() {
       } else {
         setIsWrong(true);
         hadErrorRef.current = true;
-        resetCombo();
+        const shieldUsed = useProgressStore.getState().useShield();
+        if (shieldUsed) {
+          Animated.sequence([
+            Animated.timing(shieldFlashAnim, { toValue: 0.55, duration: 80, useNativeDriver: true }),
+            Animated.timing(shieldFlashAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+          ]).start();
+        } else {
+          resetCombo();
+        }
         setTimeout(() => {
           const newFills = [...fills];
           newFills[boxIdx] = { value: box.answer, status: 'revealed' };
@@ -183,6 +194,11 @@ export default function DivideScreen() {
       {/* 콤보 */}
       <View style={styles.comboArea}>
         <ComboDisplay combo={combo} threshold={config.comboThreshold1} />
+        {shields > 0 && (
+          <View style={styles.shieldBadge}>
+            <Text style={styles.shieldText}>🛡️ {shields}</Text>
+          </View>
+        )}
       </View>
 
       {/* 필산 카드 */}
@@ -290,6 +306,10 @@ export default function DivideScreen() {
       <Animated.View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: '#FFD54F', opacity: goldFlashAnim }]}
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#9C27B0', opacity: shieldFlashAnim }]}
       />
     </View>
   );
@@ -402,5 +422,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'flex-start',
+  },
+  shieldBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EDE7F6',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  shieldText: {
+    fontSize: 13,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#7E57C2',
   },
 });
