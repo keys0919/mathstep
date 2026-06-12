@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConfigStore } from '../../src/stores/config.store';
@@ -39,6 +39,7 @@ export default function DivideScreen() {
   const [fills, setFills] = useState<(FillEntry | null)[]>([null, null]);
   const [isWrong, setIsWrong] = useState(false);
   const hadErrorRef = useRef(false);
+  const flashAnim = useRef(new Animated.Value(0)).current;
 
   const problem = problems[pIdx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
@@ -110,6 +111,15 @@ export default function DivideScreen() {
     },
     [isWrong, boxIdx, fills, problem, advanceProblem, config]
   );
+
+  useEffect(() => {
+    if (isWrong) {
+      Animated.sequence([
+        Animated.timing(flashAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
+        Animated.timing(flashAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [isWrong]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentBox = problem.boxes[boxIdx];
 
@@ -263,6 +273,10 @@ export default function DivideScreen() {
         <SeedCounter count={totalSeeds} />
       </View>
 
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#EF5350', opacity: flashAnim }]}
+      />
     </View>
   );
 }

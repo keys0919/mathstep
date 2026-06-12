@@ -1,5 +1,5 @@
-import { useState, useRef, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConfigStore } from '../../src/stores/config.store';
@@ -79,6 +79,7 @@ export default function MentalScreen() {
   const [isWrong, setIsWrong] = useState(false);
   const hadWrongRef = useRef(false);
   const handlingRef = useRef(false); // 중복 탭 방지
+  const flashAnim = useRef(new Animated.Value(0)).current;
   const [pendingCarryCheck, setPendingCarryCheck] = useState(false);
   const pendingNextBoxRef = useRef(0);
 
@@ -209,6 +210,15 @@ export default function MentalScreen() {
     setBoxIdx(pendingNextBoxRef.current);
     handlingRef.current = false;
   }, [problemCarries]);
+
+  useEffect(() => {
+    if (isWrong || status === 'wrong') {
+      Animated.sequence([
+        Animated.timing(flashAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
+        Animated.timing(flashAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [isWrong, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const carryChoices = useMemo(() => {
     const carry = problemCarries[0];
@@ -430,6 +440,10 @@ export default function MentalScreen() {
             ))}
       </View>
 
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#EF5350', opacity: flashAnim }]}
+      />
     </View>
   );
 }

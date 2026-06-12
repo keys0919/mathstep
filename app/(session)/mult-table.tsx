@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProgressStore } from '../../src/stores/progress.store';
@@ -37,6 +37,7 @@ export default function MultTableScreen() {
   const inputRef = useRef<TextInput>(null);
   const scrollRef = useRef<ScrollView>(null);
   const handlingRef = useRef(false); // 중복 탭 방지
+  const flashAnim = useRef(new Animated.Value(0)).current;
 
   const problem = problems[idx];
   const totalSeeds = seeds.normal + seeds.rare + seeds.special;
@@ -79,6 +80,10 @@ export default function MultTableScreen() {
         }
       } else {
         resetCombo();
+        Animated.sequence([
+          Animated.timing(flashAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
+          Animated.timing(flashAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
+        ]).start();
       }
     }
 
@@ -155,9 +160,10 @@ export default function MultTableScreen() {
   }, []);
 
   return (
+    <View style={styles.container}>
     <ScrollView
       ref={scrollRef}
-      style={styles.container}
+      style={styles.fillFlex}
       contentContainerStyle={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
@@ -273,6 +279,11 @@ export default function MultTableScreen() {
 
 
     </ScrollView>
+    <Animated.View
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, { backgroundColor: '#EF5350', opacity: flashAnim }]}
+    />
+    </View>
   );
 }
 
@@ -280,6 +291,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FBE7',
+  },
+  fillFlex: {
+    flex: 1,
   },
   screen: {
     flexGrow: 1,

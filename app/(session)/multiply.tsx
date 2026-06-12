@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConfigStore } from '../../src/stores/config.store';
@@ -43,6 +43,7 @@ export default function MultiplyScreen() {
   const [isWrong, setIsWrong] = useState(false);
   const hadErrorRef = useRef(false);
   const handlingRef = useRef(false); // 중복 탭 방지
+  const flashAnim = useRef(new Animated.Value(0)).current;
   // 합산 단계 올림 수 입력 상태
   const [pendingCarryCheck, setPendingCarryCheck] = useState(false);
   const pendingNextStepRef = useRef(0);
@@ -165,6 +166,15 @@ export default function MultiplyScreen() {
     },
     [boxIdx, fills, isWrong, pendingCarryCheck, problem, checkSumCarry]
   );
+
+  useEffect(() => {
+    if (isWrong) {
+      Animated.sequence([
+        Animated.timing(flashAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
+        Animated.timing(flashAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [isWrong]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentBox = problem.boxes[ACTIVATION_ORDER[Math.min(boxIdx, ACTIVATION_ORDER.length - 1)]];
 
@@ -326,6 +336,10 @@ export default function MultiplyScreen() {
         <SeedCounter count={totalSeeds} />
       </View>
 
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#EF5350', opacity: flashAnim }]}
+      />
     </View>
   );
 }
