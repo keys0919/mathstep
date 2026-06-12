@@ -443,12 +443,12 @@ const styles = StyleSheet.create({
   removeEmoji: { fontSize: 48, marginBottom: 4 },
   removeTitle: { fontSize: 18, fontFamily: 'Pretendard-Bold', color: '#2E3A23' },
   removeHint: { fontSize: 13, fontFamily: 'Pretendard-Regular', color: '#9E9E9E', marginBottom: 8 },
-  removeRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
-  removeBtn: { flex: 1, paddingVertical: 12, borderRadius: 16, alignItems: 'center' },
+  removeRow: { flexDirection: 'row', gap: 12, marginTop: 4, alignSelf: 'stretch' },
+  removeBtn: { flex: 1, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
   removeBtnNo: { backgroundColor: '#F5F5F5' },
   removeBtnYes: { backgroundColor: '#EF5350' },
-  removeBtnNoText: { fontSize: 15, fontFamily: 'Pretendard-SemiBold', color: '#757575' },
-  removeBtnYesText: { fontSize: 15, fontFamily: 'Pretendard-Bold', color: '#FFF' },
+  removeBtnNoText: { fontSize: 16, fontFamily: 'Pretendard-SemiBold', color: '#757575' },
+  removeBtnYesText: { fontSize: 16, fontFamily: 'Pretendard-Bold', color: '#FFF' },
 });
 
 function AnimalEmoji({ emoji, offset }: { emoji: string; offset: number }) {

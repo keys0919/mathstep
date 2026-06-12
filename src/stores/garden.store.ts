@@ -48,35 +48,41 @@ export const useGardenStore = create<GardenStore>((set) => ({
   },
 
   placeCell: (zone, idx, cell, cost, earned) => {
-    const data = loadData();
-    const garden = data.garden ?? defaultGarden();
-    const spent = garden.spentSeeds;
-    const available = earned[cost.type] - spent[cost.type];
-    if (available < cost.amount) return false;
+    let placed = false;
+    set((s) => {
+      const garden = s.garden;
+      const spent = garden.spentSeeds;
+      const available = earned[cost.type] - spent[cost.type];
+      if (available < cost.amount) return s;
 
-    const zoneGrid = [...(garden.zones[zone] ?? Array(GRID_SIZE).fill(null))];
-    zoneGrid[idx] = cell;
+      const zoneGrid = [...(garden.zones[zone] ?? Array(GRID_SIZE).fill(null))];
+      zoneGrid[idx] = cell;
 
-    const nextGarden: GardenData = {
-      ...garden,
-      zones: { ...garden.zones, [zone]: zoneGrid },
-      spentSeeds: { ...spent, [cost.type]: spent[cost.type] + cost.amount },
-    };
-    saveData({ ...data, garden: nextGarden });
-    set({ garden: nextGarden });
-    return true;
+      const nextGarden: GardenData = {
+        ...garden,
+        zones: { ...garden.zones, [zone]: zoneGrid },
+        spentSeeds: { ...spent, [cost.type]: spent[cost.type] + cost.amount },
+      };
+      const data = loadData();
+      saveData({ ...data, garden: nextGarden });
+      placed = true;
+      return { garden: nextGarden };
+    });
+    return placed;
   },
 
   removeCell: (zone, idx) => {
-    const data = loadData();
-    const garden = data.garden ?? defaultGarden();
-    const zoneGrid = [...(garden.zones[zone] ?? Array(GRID_SIZE).fill(null))];
-    zoneGrid[idx] = null;
-    const nextGarden: GardenData = {
-      ...garden,
-      zones: { ...garden.zones, [zone]: zoneGrid },
-    };
-    saveData({ ...data, garden: nextGarden });
-    set({ garden: nextGarden });
+    set((s) => {
+      const garden = s.garden;
+      const zoneGrid = [...(garden.zones[zone] ?? Array(GRID_SIZE).fill(null))];
+      zoneGrid[idx] = null;
+      const nextGarden: GardenData = {
+        ...garden,
+        zones: { ...garden.zones, [zone]: zoneGrid },
+      };
+      const data = loadData();
+      saveData({ ...data, garden: nextGarden });
+      return { garden: nextGarden };
+    });
   },
 }));
