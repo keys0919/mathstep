@@ -129,10 +129,8 @@ export default function MultiplyScreen() {
       newCarryFills[carryIdx] = correct ? choice : problem.sumCarries[carryIdx];
       setCarryFills(newCarryFills);
       setPendingCarryCheck(false);
-      setTimeout(() => {
-        handlingRef.current = false;
-        advanceTo(pendingNextStepRef.current, fills);
-      }, 200);
+      advanceTo(pendingNextStepRef.current, fills);
+      handlingRef.current = false;
     },
     [carryFills, fills, problem, advanceTo]
   );
